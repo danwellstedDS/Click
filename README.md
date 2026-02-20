@@ -1,4 +1,4 @@
-# click.5
+# Click.5
 
 Java/Spring Boot monorepo:
 - Spring Boot API: apps/api
@@ -24,3 +24,7 @@ Java/Spring Boot monorepo:
    cd apps/web
    npm i
    npm run dev
+
+## Spec Driven Development
+- Based on Product OS
+- Follow install guide here https://buildermethods.com/agent-os/installation

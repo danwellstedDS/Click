@@ -1,6 +1,6 @@
 ---
 description: Frontend development standards, best practices, and conventions for the LTI React application including component patterns, state management, UI/UX guidelines, and testing practices
-globs: ["frontend/src/**/*.{js,jsx,ts,tsx}", "frontend/cypress/**/*.{ts,js}", "frontend/tsconfig.json", "frontend/cypress.config.ts", "frontend/package.json"]
+globs: ["apps/web/src/**/*.{js,jsx,ts,tsx}", "apps/web/cypress/**/*.{ts,js}", "apps/web/tsconfig.json", "apps/web/cypress.config.ts", "apps/web/package.json"]
 alwaysApply: true
 ---
 
@@ -22,7 +22,7 @@ alwaysApply: true
   - [State Management](#state-management)
   - [Service Layer Architecture](#service-layer-architecture)
 - [UI/UX Standards](#uiux-standards)
-  - [Bootstrap Integration](#bootstrap-integration)
+  - [Neat Design Integration](#neat-design-integration)
   - [Form Handling](#form-handling)
   - [Navigation Patterns](#navigation-patterns)
   - [Accessibility](#accessibility)
@@ -55,24 +55,23 @@ This document outlines the best practices, conventions, and standards used in th
 
 ### Core Technologies
 - **React 18.3.1**: Modern React with functional components and hooks
-- **TypeScript 4.9.5**: For type safety and better development experience
-- **Create React App 5.0.1**: Build tooling and development server
-- **React Router DOM 6.23.1**: Client-side routing and navigation
+- **TypeScript 5.5.4**: For type safety and better development experience
+- **Vite 5.4.1**: Build tooling and development server
+- **React Router DOM 7.13.0**: Client-side routing and navigation
 
 ### UI Framework
-- **Bootstrap 5.3.3**: CSS framework for responsive design
-- **React Bootstrap 2.10.2**: Bootstrap components for React
-- **React Bootstrap Icons 1.11.4**: Icon library
-- **React DatePicker 6.9.0**: Date input components
+- **@derbysoft/neat-design ^2.2.3**: Design system (wraps Ant Design v5.26+) — the only UI component library
+- **@derbysoft/neat-design-icons**: Icon set
+
+Note: neat-design ships DatePicker, Select, Cascader, TimePicker, and other form primitives internally — no separate packages needed.
 
 ### State Management & Data Flow
 - **React Hooks**: useState, useEffect for local state management
-- **React Beautiful DND 13.1.1**: Drag and drop functionality
-- **Axios**: HTTP client for API communication
+- **Context API**: For shared state across the component tree
+- **Native fetch** via the project's `lib/apiClient.ts` wrapper — all API calls go through `apiRequest<T>(path, options)`
 
 ### Testing Framework
 - **Cypress 14.4.1**: End-to-end testing
-- **Jest**: Unit testing (via Create React App)
 - **React Testing Library**: Component testing utilities
 
 ### Development Tools
@@ -83,21 +82,18 @@ This document outlines the best practices, conventions, and standards used in th
 ## Project Structure
 
 ```
-frontend/
-├── public/                 # Static assets
+apps/web/
 ├── src/
-│   ├── components/        # Reusable UI components
-│   ├── services/         # API service layer
-│   ├── pages/           # Page components (future organization)
-│   ├── assets/          # Images, fonts, static resources
-│   ├── App.js           # Main application component
-│   ├── index.tsx        # Application entry point
-│   └── index.css        # Global styles
-├── cypress/
-│   └── e2e/            # End-to-end test files
-├── package.json         # Dependencies and scripts
-├── tsconfig.json       # TypeScript configuration
-└── cypress.config.ts   # Cypress configuration
+│   ├── features/          # Feature-sliced directories (e.g. auth/)
+│   │   └── <feature>/
+│   │       ├── <Feature>Page.tsx
+│   │       ├── <feature>Api.ts
+│   │       └── types.ts
+│   ├── lib/               # Shared utilities (apiClient.ts)
+│   ├── App.tsx
+│   └── main.tsx
+├── package.json
+└── vite.config.ts
 ```
 
 ## Coding Standards
@@ -126,12 +122,12 @@ type CandidateCardProps = {
 
 const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, index, onClick }) => {
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Handle candidate card click event
     const handleCardClick = () => {
         onClick(candidate);
     };
-    
+
     return (
         <div className="candidate-card" onClick={handleCardClick}>
             {/* Component JSX */}
@@ -142,12 +138,12 @@ const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, index, onClick
 // Avoid: Non-English comments or names
 const TarjetaCandidato: React.FC<PropsTarjetaCandidato> = ({ candidato, indice, alHacerClic }) => {
     const [estaCargando, setEstaCargando] = useState(false);
-    
+
     // Manejar evento de clic en la tarjeta de candidato
     const manejarClicTarjeta = () => {
         alHacerClic(candidato);
     };
-    
+
     return (
         <div className="tarjeta-candidato" onClick={manejarClicTarjeta}>
             {/* JSX del componente */}
@@ -179,8 +175,8 @@ catch (error) {
 export const candidateService = {
     getAllCandidates: async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/candidates`);
-            return response.data;
+            const data = await apiRequest<Candidate[]>('/candidates');
+            return data;
         } catch (error) {
             console.error('Error fetching candidates:', error);
             throw error;
@@ -192,8 +188,8 @@ export const candidateService = {
 export const servicioCandidatos = {
     obtenerTodosLosCandidatos: async () => {
         try {
-            const respuesta = await axios.get(`${API_BASE_URL}/candidates`);
-            return respuesta.data;
+            const respuesta = await apiRequest<Candidate[]>('/candidates');
+            return respuesta;
         } catch (error) {
             console.error('Error al obtener candidatos:', error);
             throw error;
@@ -255,31 +251,22 @@ const [formData, setFormData] = useState({
     description: '',
     status: 'Borrador'
 });
-
-const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-        ...prev,
-        [name]: value
-    }));
-};
 ```
 
 #### Loading and Error States
 - **Always handle loading states** for async operations
 - **Implement error handling** with user-friendly messages
-- **Use React Bootstrap Alert** components for feedback
+- Use **neat-design Spinner, Alert, and toast** components for feedback
 
 ```javascript
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState('');
-const [success, setSuccess] = useState('');
 
 // In async function
 try {
     setLoading(true);
     const data = await apiCall();
-    setSuccess('Operation completed successfully');
+    toast.success('Operation completed successfully');
 } catch (error) {
     setError('Error message: ' + error.message);
 } finally {
@@ -290,31 +277,29 @@ try {
 ### Service Layer Architecture
 
 #### API Services
-- **Centralize API calls** in service files
-- Use **axios** for HTTP requests
-- **Export service objects** with grouped methods
+- **Centralize API calls** in feature `*Api.ts` files
+- Use **`apiRequest<T>`** from `lib/apiClient.ts` for all HTTP requests
 - **Handle errors at service level** when appropriate
 
-```javascript
-import axios from 'axios';
+```typescript
+import { apiRequest } from '@/lib/apiClient';
 
-const API_BASE_URL = 'http://localhost:3010';
-
-export const positionService = {
+export const positionApi = {
     getAllPositions: async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/positions`);
-            return response.data;
+            return await apiRequest<Position[]>('/positions');
         } catch (error) {
             console.error('Error fetching positions:', error);
             throw error;
         }
     },
-    
-    updatePosition: async (id, positionData) => {
+
+    updatePosition: async (id: number, positionData: Partial<Position>) => {
         try {
-            const response = await axios.put(`${API_BASE_URL}/positions/${id}`, positionData);
-            return response.data;
+            return await apiRequest<Position>(`/positions/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(positionData),
+            });
         } catch (error) {
             console.error('Error updating position:', error);
             throw error;
@@ -325,53 +310,95 @@ export const positionService = {
 
 ## UI/UX Standards
 
-### Bootstrap Integration
-- Use **React Bootstrap components** instead of plain Bootstrap
-- **Import Bootstrap CSS** in the main App component
-- Follow **Bootstrap responsive grid system** (Container, Row, Col)
+### Neat Design Integration
 
-```javascript
-import { Container, Row, Col, Card, Button, Form, Alert } from 'react-bootstrap';
+`@derbysoft/neat-design` is the only UI component library. Never use raw HTML form elements, plain divs for layout structure, or inline styles where a neat-design component exists.
+
+#### Setup — ConfigProvider (required in main.tsx)
+
+Wrap the entire app with neat-design's ConfigProvider:
+
+```tsx
+import { ConfigProvider } from '@derbysoft/neat-design';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <ConfigProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ConfigProvider>
+    </BrowserRouter>
+  </React.StrictMode>
+);
 ```
 
+#### Import convention
+
+Always import from `@derbysoft/neat-design` — never from `antd` directly.
+
+```tsx
+import { Button, Form, Input, Table, Modal, Alert, Spinner } from '@derbysoft/neat-design';
+```
+
+#### Component catalogue (key components to use)
+
+| Need | Use |
+|---|---|
+| Buttons | `Button` — variants: `primary`, `secondary`, `tertiary`, `tertiaryInline`, `link` |
+| Text input | `Input`, `InputNumber` |
+| Dropdowns | `Select`, `Cascader` |
+| Dates | `DatePicker`, `TimePicker` |
+| Checkboxes / Radios | `Checkbox`, `Radio`, `Switch` |
+| Forms | `Form` (with `Form.Item` for layout + validation) |
+| Data tables | `Table` |
+| Modals | `Modal` |
+| Loading | `Spinner`, `Skeleton` |
+| Inline alerts | `Alert` |
+| Toast notifications | `toast` (service) |
+| Snack bar | `SnackBar` (service) |
+| Navigation | `Menu`, `Breadcrumb`, `Tabs`, `Steps` |
+| Layout | `Layout` (with `Layout.Header`, `Layout.Content`, `Layout.Sider`) |
+| Overlays | `Drawer`, `Tooltip`, `Popover`, `Dropdown` |
+| Tag / Badge | `Tag`, `Badge` |
+
 ### Form Handling
-- Use **controlled components** for form inputs
-- Implement **real-time validation** where appropriate
-- **Disable submit buttons** during form submission
+
+- Use `Form` and `Form.Item` with `name` + `rules` for validation — do not manage form state manually via `useState` per-field
+- Use `loading` prop on `Button` instead of disabling + text swap
 - **Clear form state** after successful submission
 
-```javascript
-<Form onSubmit={handleSubmit}>
-    <Form.Group className="mb-3">
-        <Form.Label>Title *</Form.Label>
-        <Form.Control
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            required
-        />
-    </Form.Group>
-    <Button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save'}
+```tsx
+import { Form, Input, Button } from '@derbysoft/neat-design';
+
+<Form onFinish={handleSubmit} layout="vertical">
+  <Form.Item name="title" label="Title" rules={[{ required: true }]}>
+    <Input />
+  </Form.Item>
+  <Form.Item>
+    <Button type="submit" variant="primary" loading={saving}>
+      {saving ? 'Saving…' : 'Save'}
     </Button>
+  </Form.Item>
 </Form>
 ```
 
 ### Navigation Patterns
+
 - Use **React Router** for all navigation
 - **Implement breadcrumbs** with back navigation
 - Use **programmatic navigation** with useNavigate hook
 
-```javascript
+```tsx
 import { useNavigate } from 'react-router-dom';
+import { Button, Breadcrumb } from '@derbysoft/neat-design';
 
 const navigate = useNavigate();
 
-// Navigation examples
-<Button variant="link" onClick={() => navigate('/')}>
-    ← Back to Dashboard
-</Button>
+<Button variant="link" onClick={() => navigate('/')}>← Back</Button>
+
+<Breadcrumb items={[{ title: 'Dashboard', href: '/' }, { title: 'Detail' }]} />
 ```
 
 ### Accessibility
@@ -380,11 +407,10 @@ const navigate = useNavigate();
 - Ensure **keyboard navigation** support
 - Provide **alternative text** for images
 
-```javascript
-<Form.Control 
-    type="text" 
-    placeholder="Search by title" 
-    aria-label="Search positions by title"
+```tsx
+<Input
+  placeholder="Search by title"
+  aria-label="Search positions by title"
 />
 ```
 
@@ -451,7 +477,6 @@ describe('Positions API - Update', () => {
 
 ### ESLint Configuration
 - Extend **React App** configuration
-- Include **Jest rules** for testing
 - **Automatic code formatting** and error detection
 - **Consistent code style** across the project
 
@@ -464,7 +489,7 @@ describe('Positions API - Update', () => {
 // cypress.config.ts
 export default defineConfig({
     e2e: {
-        baseUrl: 'http://localhost:3000',
+        baseUrl: 'http://localhost:5173',
         env: {
             API_URL: 'http://localhost:3010'
         }
@@ -481,10 +506,15 @@ export default defineConfig({
 - **Extract reusable logic** into custom hooks
 
 ### Bundle Optimization
-- **Tree shaking** enabled through Create React App
+- **Vite tree-shakes ES modules by default**
 - **Code splitting** at route level
 - **Optimize images** and static assets
 - **Monitor bundle size** with build tools
+- Import neat-design components individually to maximise tree-shaking:
+
+```tsx
+import { Button } from '@derbysoft/neat-design';  // ✓ tree-shakeable
+```
 
 ### API Efficiency
 - **Implement proper error handling** for network requests
@@ -501,9 +531,9 @@ export default defineConfig({
 
 ### Development Scripts
 ```bash
-npm start          # Development server
-npm test           # Run unit tests
-npm run build      # Production build
+npm run dev       # Vite dev server
+npm run build     # Production build
+npm run preview   # Preview production build
 npm run cypress:open    # Open Cypress test runner
 npm run cypress:run     # Run Cypress tests headlessly
 ```
@@ -525,7 +555,8 @@ npm run cypress:run     # Run Cypress tests headlessly
 ### Component Modernization
 - **Functional components** over class components
 - **Hooks** instead of lifecycle methods
-- **React Bootstrap** components for consistency
-- **Responsive design** principles throughout
+- **@derbysoft/neat-design components** replace all raw HTML form elements and inline styles
+- New pages must use neat-design layout primitives (`Layout`, `Card`, `Divider`)
+- Existing inline-styled components should be migrated to neat-design in each PR that touches them
 
 This document serves as the foundation for maintaining code quality and consistency across the LTI frontend application. All team members should follow these practices to ensure a maintainable and scalable codebase.
