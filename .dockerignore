@@ -1,8 +1,9 @@
-.env
+.git/
 .gradle/
 **/build/
 .idea/
 .DS_Store
 apps/web/node_modules/
 apps/web/dist/
-.claude/settings.local.json
+.claude/
+agent-os/

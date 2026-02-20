@@ -169,7 +169,7 @@ fun Route.authRoutes(
                     value = newToken,
                     httpOnly = true,
                     secure = isProduction,
-                    maxAge = 8 * 3600,
+                    maxAge = 8L * 3600,
                     path = "/"
                 )
 
@@ -206,7 +206,7 @@ private fun setAuthCookies(call: ApplicationCall, accessToken: String, refreshTo
         value = accessToken,
         httpOnly = true,
         secure = isProduction,
-        maxAge = 8 * 3600,
+        maxAge = 8L * 3600,
         path = "/"
     )
     call.response.cookies.append(
@@ -214,7 +214,7 @@ private fun setAuthCookies(call: ApplicationCall, accessToken: String, refreshTo
         value = refreshToken,
         httpOnly = true,
         secure = isProduction,
-        maxAge = REFRESH_TOKEN_DAYS.toInt() * 86400,
+        maxAge = REFRESH_TOKEN_DAYS * 86400,
         path = "/"
     )
 }
@@ -225,7 +225,7 @@ private fun clearAuthCookies(call: ApplicationCall, isProduction: Boolean) {
         value = "",
         httpOnly = true,
         secure = isProduction,
-        maxAge = 0,
+        maxAge = 0L,
         path = "/"
     )
     call.response.cookies.append(
@@ -233,7 +233,7 @@ private fun clearAuthCookies(call: ApplicationCall, isProduction: Boolean) {
         value = "",
         httpOnly = true,
         secure = isProduction,
-        maxAge = 0,
+        maxAge = 0L,
         path = "/"
     )
 }

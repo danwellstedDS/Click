@@ -1,10 +1,12 @@
 package persistence
 
 import domain.RefreshToken
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import persistence.ports.RefreshTokenRepositoryPort
 import persistence.tables.RefreshTokenTable
@@ -34,7 +36,7 @@ class RefreshTokenRepository : RefreshTokenRepositoryPort {
     }
 
     override fun findByTokenHash(tokenHash: String): RefreshToken? = transaction {
-        RefreshTokenTable.select { RefreshTokenTable.tokenHash eq tokenHash }
+        RefreshTokenTable.selectAll().where { RefreshTokenTable.tokenHash eq tokenHash }
             .singleOrNull()
             ?.let { row ->
                 RefreshToken(

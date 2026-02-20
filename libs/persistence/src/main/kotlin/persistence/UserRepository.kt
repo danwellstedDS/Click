@@ -2,7 +2,7 @@ package persistence
 
 import domain.User
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import persistence.ports.UserRepositoryPort
 import persistence.tables.UserTable
@@ -12,7 +12,7 @@ import java.util.UUID
 class UserRepository : UserRepositoryPort {
 
     override fun findByEmail(email: String): User? = transaction {
-        UserTable.select { UserTable.email eq email }
+        UserTable.selectAll().where { UserTable.email eq email }
             .singleOrNull()
             ?.let { row ->
                 User(
@@ -26,7 +26,7 @@ class UserRepository : UserRepositoryPort {
     }
 
     override fun findById(id: UUID): User? = transaction {
-        UserTable.select { UserTable.id eq id }
+        UserTable.selectAll().where { UserTable.id eq id }
             .singleOrNull()
             ?.let { row ->
                 User(

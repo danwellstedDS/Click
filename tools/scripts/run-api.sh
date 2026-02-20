@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-./gradlew :apps:api:run
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "${ROOT}"
+docker compose up --build

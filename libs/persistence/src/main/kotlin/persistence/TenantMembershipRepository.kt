@@ -4,7 +4,7 @@ import domain.Role
 import domain.TenantMembership
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import persistence.ports.TenantMembershipRepositoryPort
 import persistence.tables.TenantMembershipTable
@@ -14,7 +14,7 @@ import java.util.UUID
 class TenantMembershipRepository : TenantMembershipRepositoryPort {
 
     override fun findByUserId(userId: UUID): List<TenantMembership> = transaction {
-        TenantMembershipTable.select { TenantMembershipTable.userId eq userId }
+        TenantMembershipTable.selectAll().where { TenantMembershipTable.userId eq userId }
             .map { row ->
                 TenantMembership(
                     id = row[TenantMembershipTable.id],
@@ -28,7 +28,7 @@ class TenantMembershipRepository : TenantMembershipRepositoryPort {
     }
 
     override fun findByUserAndTenant(userId: UUID, tenantId: UUID): TenantMembership? = transaction {
-        TenantMembershipTable.select {
+        TenantMembershipTable.selectAll().where {
             (TenantMembershipTable.userId eq userId) and (TenantMembershipTable.tenantId eq tenantId)
         }.singleOrNull()?.let { row ->
             TenantMembership(
