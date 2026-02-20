@@ -1,0 +1,43 @@
+api:
+  contract:
+    description: API versioning, route prefix /api/v1, response envelope, and v1 change policy
+  error-handling:
+    description: Legacy error response format with AUTH_001/DB_001/VAL_001 codes
+  errors:
+    description: Error code prefixes by HTTP status (VAL_, AUTH_, RES_, etc.) and logging rules
+  response-format:
+    description: API response format (placeholder)
+
+auth:
+  authorization-multitenancy:
+    description: Tenant isolation rules, tenantId from token claims, and Tenant→Chain→Hotel hierarchy
+
+data:
+  flyway-migrations:
+    description: Flyway migration naming convention (V{YYYYMMDDHHMM}) and CI requirements
+  multitenancy:
+    description: Required fields for tenant-owned entities (id, tenant_id, timestamps) and isolation rules
+
+database:
+  migrations:
+    description: Database migrations (placeholder)
+
+frontend:
+  architecture:
+    description: Feature-based frontend structure, central API client layer, and required routes
+
+integrations:
+  google-ads:
+    description: Google Ads client interface, error normalization to UP_GADS_*, and provider logging
+
+jobs:
+  async-jobs:
+    description: Async job pattern for operations over 3 seconds, idempotency, and status tracking
+
+observability:
+  logging:
+    description: Structured JSON logging with required fields: requestId, tenantId, route, status, durationMs
+
+quality:
+  testing:
+    description: Test types (unit/integration/contract/e2e) and CI gate requirements
