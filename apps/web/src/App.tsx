@@ -1,13 +1,14 @@
 import { Routes, Route } from "react-router-dom";
+import { Typography } from "@derbysoft/neat-design";
 import { LoginPage } from "./features/auth/LoginPage";
 import { TenantPickerPage } from "./features/auth/TenantPickerPage";
 import { PrivateRoute } from "./features/auth/PrivateRoute";
 
 function Dashboard() {
   return (
-    <div style={{ fontFamily: "system-ui", padding: 24 }}>
-      <h1>Dashboard</h1>
-      <p>Welcome! You are authenticated.</p>
+    <div style={{ padding: 24 }}>
+      <Typography.Title level={1}>Dashboard</Typography.Title>
+      <Typography.Paragraph>Welcome! You are authenticated.</Typography.Paragraph>
     </div>
   );
 }

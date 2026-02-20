@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { Spinner } from "@derbysoft/neat-design";
 import { useAuth } from "./AuthContext";
 
 interface PrivateRouteProps {
@@ -9,7 +10,7 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   if (!user) {
