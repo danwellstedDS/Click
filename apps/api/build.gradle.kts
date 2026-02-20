@@ -1,33 +1,30 @@
 plugins {
-  alias(libs.plugins.kotlin.jvm)
-  application
+  java
+  alias(libs.plugins.spring.boot)
+  alias(libs.plugins.spring.dependency.management)
 }
 
-kotlin { jvmToolchain(21) }
+java {
+  toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
 
-application {
-  mainClass.set("api.MainKt")
+springBoot {
+  mainClass.set("api.ApiApplication")
 }
 
 dependencies {
   implementation(project(":libs:domain"))
   implementation(project(":libs:persistence"))
 
-  implementation(libs.ktor.server.core)
-  implementation(libs.ktor.server.netty)
-  implementation(libs.ktor.server.contentnegotiation)
-  implementation(libs.ktor.serialization.jackson)
-  implementation(libs.ktor.server.calllogging)
-  implementation(libs.ktor.server.auth)
-  implementation(libs.ktor.server.auth.jwt)
-  implementation(libs.bcrypt)
+  implementation(libs.spring.boot.starter.web)
+  implementation(libs.spring.boot.starter.security)
+  implementation(libs.spring.boot.starter.actuator)
+  implementation(libs.spring.boot.starter.data.jpa)
+  implementation(libs.java.jwt)
 
-  implementation(libs.logback)
-
-  testImplementation(libs.ktor.server.test.host)
-  testImplementation(libs.kotlin.test)
-  testImplementation(libs.junit.api)
-  testRuntimeOnly(libs.junit.engine)
+  testImplementation(libs.spring.boot.starter.test)
+  testImplementation(libs.spring.boot.test)
+  testImplementation(libs.spring.boot.test.autoconfigure)
 }
 
 tasks.test { useJUnitPlatform() }

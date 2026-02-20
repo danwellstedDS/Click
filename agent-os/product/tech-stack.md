@@ -7,7 +7,7 @@
 
 ## Backend
 
-- Kotlin / Ktor (JVM)
+- Java 25
 - Spring Boot 4
 - Gradle (multi-project Kotlin DSL monorepo)
 

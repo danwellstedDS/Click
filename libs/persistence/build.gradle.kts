@@ -1,25 +1,30 @@
 plugins {
-  alias(libs.plugins.kotlin.jvm)
+  java
+  alias(libs.plugins.spring.dependency.management)
 }
 
-kotlin { jvmToolchain(21) }
+java {
+  toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+dependencyManagement {
+  imports {
+    mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}")
+  }
+}
 
 dependencies {
   implementation(project(":libs:domain"))
 
-  implementation(libs.exposed.core)
-  implementation(libs.exposed.dao)
-  implementation(libs.exposed.jdbc)
-  implementation(libs.postgres)
+  implementation(libs.spring.boot.starter.data.jpa)
   implementation(libs.flyway)
-  implementation(libs.exposed.java.time)
   implementation(libs.flyway.postgres)
+  implementation(libs.postgres)
 
+  testImplementation(libs.spring.boot.starter.test)
+  testImplementation(libs.spring.boot.testcontainers)
   testImplementation(libs.testcontainers.junit)
   testImplementation(libs.testcontainers.pg)
-  testImplementation(libs.kotlin.test)
-  testImplementation(libs.junit.api)
-  testRuntimeOnly(libs.junit.engine)
 }
 
 tasks.test { useJUnitPlatform() }

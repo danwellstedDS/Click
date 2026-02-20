@@ -1,13 +1,14 @@
 # click.5
 
-Kotlin-first prototype monorepo:
-- Ktor API: apps/api
+Java/Spring Boot monorepo:
+- Spring Boot API: apps/api
 - React web: apps/web
 - Flyway migrations: infra/db/migrations
 - Postgres/Redis via shared dev infra
 
 ## Prereqs
 - Shared infra running: ~/00_System/dev-infra
+- Java 25
 
 ## Run (local)
 1) Create DB (once):
@@ -16,7 +17,8 @@ Kotlin-first prototype monorepo:
 2) Run API:
    DATABASE_URL=jdbc:postgresql://localhost:5432/click.5_db \
    DB_USER=postgres DB_PASS=postgres \
-   ./gradlew :apps:api:run
+   JWT_SECRET=dev-secret \
+   ./gradlew :apps:api:bootRun
 
 3) Run web:
    cd apps/web

@@ -1,12 +1,14 @@
 plugins {
-  alias(libs.plugins.kotlin.jvm)
+  java
 }
 
-kotlin { jvmToolchain(21) }
+java {
+  toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
 
 dependencies {
-  testImplementation(libs.kotlin.test)
   testImplementation(libs.junit.api)
+  testImplementation(libs.assertj)
   testRuntimeOnly(libs.junit.engine)
 }
 

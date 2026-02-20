@@ -1,0 +1,26 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/project_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: filesystem:infra/db/migrations
+
+jwt:
+  secret: ${JWT_SECRET:}
+
+app:
+  env: ${ENV:development}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
