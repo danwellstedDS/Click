@@ -1,15 +1,17 @@
 import { Routes, Route } from "react-router-dom";
-import { Typography } from "@derbysoft/neat-design";
 import { LoginPage } from "./features/auth/LoginPage";
 import { TenantPickerPage } from "./features/auth/TenantPickerPage";
 import { PrivateRoute } from "./features/auth/PrivateRoute";
+import { AdminRoute } from "./features/auth/AdminRoute";
+import { AppLayout } from "./components/AppLayout";
+import { UsersListPage } from "./features/users/UsersListPage";
+import { UserDetailPage } from "./features/users/UserDetailPage";
 
 function Dashboard() {
   return (
-    <div style={{ padding: 24 }}>
-      <Typography.Title level={1}>Dashboard</Typography.Title>
-      <Typography.Paragraph>Welcome! You are authenticated.</Typography.Paragraph>
-    </div>
+    <AppLayout title="Overview Performance Dashboard" breadcrumb="Dashboard">
+      {/* placeholder — real content comes later */}
+    </AppLayout>
   );
 }
 
@@ -18,6 +20,26 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/select-tenant" element={<TenantPickerPage />} />
+      <Route
+        path="/users"
+        element={
+          <PrivateRoute>
+            <AdminRoute>
+              <UsersListPage />
+            </AdminRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/users/:id"
+        element={
+          <PrivateRoute>
+            <AdminRoute>
+              <UserDetailPage />
+            </AdminRoute>
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/*"
         element={

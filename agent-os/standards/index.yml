@@ -11,3 +11,7 @@ documentation:
 frontend:
   standards:
     description: Frontend standards for the React 18/TypeScript app including components, state, and Cypress testing
+
+workflow:
+  standards:
+    description: Git workflow, branch naming, TDD commit protocol, and PR standards for full-stack development

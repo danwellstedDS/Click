@@ -10,4 +10,6 @@ public interface TenantMembershipRepository {
   List<TenantMembership> findByUserId(UUID userId);
   Optional<TenantMembership> findByUserAndTenant(UUID userId, UUID tenantId);
   TenantMembership create(UUID userId, UUID tenantId, Role role);
+  List<TenantMembership> findAllByTenantId(UUID tenantId);
+  void deleteByUserId(UUID userId);
 }
