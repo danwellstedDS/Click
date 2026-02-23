@@ -1,6 +1,7 @@
 package domain.repository;
 
 import domain.User;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -8,4 +9,6 @@ public interface UserRepository {
   Optional<User> findByEmail(String email);
   Optional<User> findById(UUID id);
   User create(String email, String passwordHash);
+  List<User> findAllByTenantId(UUID tenantId);
+  void deleteById(UUID id);
 }
