@@ -12,6 +12,8 @@ public final class UserMapper {
         entity.getId(),
         entity.getEmail(),
         entity.getPasswordHash(),
+        entity.getName(),
+        entity.isActive(),
         entity.getCreatedAt(),
         entity.getUpdatedAt()
     );

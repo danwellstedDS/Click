@@ -6,16 +6,16 @@ import api.application.dto.UserDetailResponse;
 import api.application.dto.UserDetailResponse.MembershipInfo;
 import api.application.dto.UserListItemResponse;
 import api.security.UserPrincipal;
+import domain.Chain;
+import domain.OrgMembership;
 import domain.Role;
-import domain.TenantMembership;
 import domain.User;
 import domain.error.DomainError;
-import domain.repository.TenantMembershipRepository;
+import domain.repository.ChainRepository;
+import domain.repository.OrgMembershipRepository;
 import domain.repository.UserRepository;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,42 +24,32 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserManagementService {
 
   private final UserRepository userRepository;
-  private final TenantMembershipRepository membershipRepository;
+  private final OrgMembershipRepository orgMembershipRepository;
+  private final ChainRepository chainRepository;
   private final PasswordEncoder passwordEncoder;
 
   public UserManagementService(
       UserRepository userRepository,
-      TenantMembershipRepository membershipRepository,
+      OrgMembershipRepository orgMembershipRepository,
+      ChainRepository chainRepository,
       PasswordEncoder passwordEncoder
   ) {
     this.userRepository = userRepository;
-    this.membershipRepository = membershipRepository;
+    this.orgMembershipRepository = orgMembershipRepository;
+    this.chainRepository = chainRepository;
     this.passwordEncoder = passwordEncoder;
   }
 
   public List<UserListItemResponse> listUsers(UserPrincipal principal) {
     requireAdmin(principal);
-    UUID tenantId = principal.tenantId();
+    UUID orgId = resolveOrgId(principal.tenantId());
 
-    List<TenantMembership> memberships = membershipRepository.findAllByTenantId(tenantId);
-    List<UUID> userIds = memberships.stream().map(TenantMembership::userId).toList();
-    List<User> users = userRepository.findAllByTenantId(tenantId);
-
-    Map<UUID, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
-    Map<UUID, TenantMembership> membershipByUserId = memberships.stream()
-        .collect(Collectors.toMap(TenantMembership::userId, m -> m));
-
-    return userIds.stream()
-        .filter(userMap::containsKey)
-        .map(id -> {
-          User user = userMap.get(id);
-          TenantMembership membership = membershipByUserId.get(id);
-          return new UserListItemResponse(
-              user.getId(),
-              user.getEmail(),
-              membership.role().name(),
-              user.getCreatedAt()
-          );
+    return orgMembershipRepository.findByOrganizationId(orgId).stream()
+        .map(m -> {
+          User user = userRepository.findById(m.userId())
+              .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
+          String role = m.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
+          return new UserListItemResponse(user.getId(), user.getEmail(), role, user.getCreatedAt());
         })
         .toList();
   }
@@ -79,19 +69,19 @@ public class UserManagementService {
       throw new DomainError.Conflict("USR_001", "A user with this email already exists");
     });
 
+    UUID orgId = resolveOrgId(principal.tenantId());
+
     String tempPassword = UUID.randomUUID().toString();
     String hashedPassword = passwordEncoder.encode(tempPassword);
 
     User user = userRepository.create(request.email(), hashedPassword);
-    TenantMembership membership = membershipRepository.create(
-        user.getId(), principal.tenantId(), request.role()
+    OrgMembership membership = orgMembershipRepository.create(
+        user.getId(), orgId, request.role() == Role.ADMIN
     );
 
+    String role = membership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
     UserListItemResponse userItem = new UserListItemResponse(
-        user.getId(),
-        user.getEmail(),
-        membership.role().name(),
-        user.getCreatedAt()
+        user.getId(), user.getEmail(), role, user.getCreatedAt()
     );
 
     return new CreateUserResponse(userItem, tempPassword);
@@ -103,29 +93,27 @@ public class UserManagementService {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    List<TenantMembership> memberships = membershipRepository.findByUserId(userId);
+    UUID orgId = resolveOrgId(principal.tenantId());
 
-    boolean belongsToTenant = memberships.stream()
-        .anyMatch(m -> m.tenantId().equals(principal.tenantId()));
+    OrgMembership orgMembership = orgMembershipRepository.findByUserAndOrganization(userId, orgId)
+        .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    if (!belongsToTenant) {
-      throw new DomainError.NotFound("USR_002", "User not found");
-    }
+    String roleInChain = orgMembership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
 
-    String roleInTenant = memberships.stream()
-        .filter(m -> m.tenantId().equals(principal.tenantId()))
-        .map(m -> m.role().name())
-        .findFirst()
-        .orElse(Role.VIEWER.name());
-
-    List<MembershipInfo> membershipInfos = memberships.stream()
-        .map(m -> new MembershipInfo(m.tenantId().toString(), m.role().name(), m.createdAt()))
+    List<MembershipInfo> membershipInfos = orgMembershipRepository.findByUserId(userId).stream()
+        .map(m -> {
+          String chainIdStr = chainRepository.findByPrimaryOrgId(m.organizationId())
+              .map(c -> c.getId().toString())
+              .orElse(m.organizationId().toString());
+          String role = m.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
+          return new MembershipInfo(chainIdStr, role, m.createdAt());
+        })
         .toList();
 
     return new UserDetailResponse(
         user.getId(),
         user.getEmail(),
-        roleInTenant,
+        roleInChain,
         user.getCreatedAt(),
         user.getUpdatedAt(),
         membershipInfos
@@ -140,19 +128,21 @@ public class UserManagementService {
       throw new DomainError.ValidationError("USR_003", "You cannot delete your own account");
     }
 
-    User user = userRepository.findById(userId)
+    userRepository.findById(userId)
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    List<TenantMembership> memberships = membershipRepository.findByUserId(user.getId());
-    boolean belongsToTenant = memberships.stream()
-        .anyMatch(m -> m.tenantId().equals(principal.tenantId()));
+    UUID orgId = resolveOrgId(principal.tenantId());
+    orgMembershipRepository.findByUserAndOrganization(userId, orgId)
+        .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    if (!belongsToTenant) {
-      throw new DomainError.NotFound("USR_002", "User not found");
-    }
-
-    membershipRepository.deleteByUserId(userId);
+    // org_memberships cascade on user delete
     userRepository.deleteById(userId);
+  }
+
+  private UUID resolveOrgId(UUID chainId) {
+    Chain chain = chainRepository.findById(chainId)
+        .orElseThrow(() -> new DomainError.NotFound("CHN_001", "Chain not found"));
+    return chain.getPrimaryOrgId();
   }
 
   private static void requireAdmin(UserPrincipal principal) {

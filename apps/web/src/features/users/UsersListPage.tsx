@@ -192,7 +192,7 @@ export function UsersListPage() {
             >
               Cancel
             </Button>
-            <Button variant="primary" type="submit" loading={addLoading}>
+            <Button variant="primary" htmlType="submit" loading={addLoading}>
               {addLoading ? "Creating…" : "Create User"}
             </Button>
           </Form.Item>
