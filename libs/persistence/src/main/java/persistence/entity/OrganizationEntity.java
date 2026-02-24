@@ -1,7 +1,10 @@
 package persistence.entity;
 
+import domain.OrganizationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -12,8 +15,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "tenants")
-public class TenantEntity {
+@Table(name = "organizations")
+public class OrganizationEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
@@ -21,6 +24,10 @@ public class TenantEntity {
 
   @Column(nullable = false)
   private String name;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private OrganizationType type;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -30,11 +37,12 @@ public class TenantEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  protected TenantEntity() {
+  protected OrganizationEntity() {
   }
 
-  public TenantEntity(String name) {
+  public OrganizationEntity(String name, OrganizationType type) {
     this.name = name;
+    this.type = type;
   }
 
   public UUID getId() {
@@ -43,6 +51,10 @@ public class TenantEntity {
 
   public String getName() {
     return name;
+  }
+
+  public OrganizationType getType() {
+    return type;
   }
 
   public Instant getCreatedAt() {

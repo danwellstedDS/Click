@@ -9,12 +9,14 @@ import api.application.dto.UserInfo;
 import api.security.JwtService;
 import api.security.UserPrincipal;
 import domain.AuthClaims;
+import domain.Chain;
+import domain.OrgMembership;
 import domain.Role;
-import domain.TenantMembership;
 import domain.User;
 import domain.error.DomainError;
+import domain.repository.ChainRepository;
+import domain.repository.OrgMembershipRepository;
 import domain.repository.RefreshTokenRepository;
-import domain.repository.TenantMembershipRepository;
 import domain.repository.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -35,20 +37,23 @@ public class AuthService {
       "$2a$12$dummyhashfortimingtattackprevention000000000000000000000";
 
   private final UserRepository userRepository;
-  private final TenantMembershipRepository membershipRepository;
+  private final OrgMembershipRepository orgMembershipRepository;
+  private final ChainRepository chainRepository;
   private final RefreshTokenRepository refreshTokenRepository;
   private final JwtService jwtService;
   private final PasswordEncoder passwordEncoder;
 
   public AuthService(
       UserRepository userRepository,
-      TenantMembershipRepository membershipRepository,
+      OrgMembershipRepository orgMembershipRepository,
+      ChainRepository chainRepository,
       RefreshTokenRepository refreshTokenRepository,
       JwtService jwtService,
       PasswordEncoder passwordEncoder
   ) {
     this.userRepository = userRepository;
-    this.membershipRepository = membershipRepository;
+    this.orgMembershipRepository = orgMembershipRepository;
+    this.chainRepository = chainRepository;
     this.refreshTokenRepository = refreshTokenRepository;
     this.jwtService = jwtService;
     this.passwordEncoder = passwordEncoder;
@@ -68,13 +73,17 @@ public class AuthService {
     }
 
     User user = userOpt.get();
-    List<TenantMembership> memberships = membershipRepository.findByUserId(user.getId());
+    List<OrgMembership> memberships = orgMembershipRepository.findByUserId(user.getId());
     if (memberships.isEmpty()) {
-      throw new AuthException("AUTH_001", "No tenant memberships found", 401);
+      throw new AuthException("AUTH_001", "No organization memberships found", 401);
     }
 
-    TenantMembership firstMembership = memberships.getFirst();
-    AuthClaims claims = new AuthClaims(user.getId(), firstMembership.tenantId(), user.getEmail(), firstMembership.role());
+    OrgMembership firstMembership = memberships.getFirst();
+    Chain chain = chainRepository.findByPrimaryOrgId(firstMembership.organizationId())
+        .orElseThrow(() -> new AuthException("AUTH_001", "No chain found for organization", 401));
+    Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
+
+    AuthClaims claims = new AuthClaims(user.getId(), chain.getId(), user.getEmail(), role);
     String accessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
 
     String rawRefreshToken = UUID.randomUUID().toString();
@@ -83,7 +92,8 @@ public class AuthService {
     refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt);
 
     List<TenantInfo> tenants = memberships.stream()
-        .map(membership -> new TenantInfo(membership.tenantId().toString(), membership.role().name()))
+        .flatMap(m -> chainRepository.findByPrimaryOrgId(m.organizationId()).stream()
+            .map(c -> new TenantInfo(c.getId().toString(), (m.isOrgAdmin() ? Role.ADMIN : Role.VIEWER).name())))
         .toList();
 
     return new LoginResponse(
@@ -111,13 +121,17 @@ public class AuthService {
     User user = userRepository.findById(storedToken.getUserId())
         .orElseThrow(() -> new AuthException("AUTH_002", "User not found", 401));
 
-    List<TenantMembership> memberships = membershipRepository.findByUserId(user.getId());
+    List<OrgMembership> memberships = orgMembershipRepository.findByUserId(user.getId());
     if (memberships.isEmpty()) {
-      throw new AuthException("AUTH_002", "No tenant memberships", 401);
+      throw new AuthException("AUTH_002", "No organization memberships", 401);
     }
 
-    TenantMembership firstMembership = memberships.getFirst();
-    AuthClaims claims = new AuthClaims(user.getId(), firstMembership.tenantId(), user.getEmail(), firstMembership.role());
+    OrgMembership firstMembership = memberships.getFirst();
+    Chain chain = chainRepository.findByPrimaryOrgId(firstMembership.organizationId())
+        .orElseThrow(() -> new AuthException("AUTH_002", "No chain found for organization", 401));
+    Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
+
+    AuthClaims claims = new AuthClaims(user.getId(), chain.getId(), user.getEmail(), role);
     String newAccessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
 
     refreshTokenRepository.deleteByTokenHash(tokenHash);
@@ -130,18 +144,17 @@ public class AuthService {
   }
 
   public TokenResponse switchTenant(UserPrincipal principal, String tenantIdRaw) {
-    UUID tenantId = parseTenantId(tenantIdRaw);
+    UUID chainId = parseTenantId(tenantIdRaw);
 
-    TenantMembership membership = membershipRepository
-        .findByUserAndTenant(principal.userId(), tenantId)
-        .orElseThrow(() -> new AuthException("AUTH_403", "No membership for requested tenant", 403));
+    Chain chain = chainRepository.findById(chainId)
+        .orElseThrow(() -> new AuthException("AUTH_403", "Chain not found", 403));
 
-    AuthClaims newClaims = new AuthClaims(
-        principal.userId(),
-        tenantId,
-        principal.getUsername(),
-        membership.role()
-    );
+    OrgMembership membership = orgMembershipRepository
+        .findByUserAndOrganization(principal.userId(), chain.getPrimaryOrgId())
+        .orElseThrow(() -> new AuthException("AUTH_403", "No access to requested chain", 403));
+
+    Role role = membership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
+    AuthClaims newClaims = new AuthClaims(principal.userId(), chainId, principal.getUsername(), role);
 
     String newToken = jwtService.createAccessToken(newClaims, ACCESS_TOKEN_SECONDS);
     return new TokenResponse(newToken);

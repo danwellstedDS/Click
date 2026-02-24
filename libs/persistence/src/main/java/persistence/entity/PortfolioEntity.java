@@ -12,24 +12,21 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "users")
-public class UserEntity {
+@Table(name = "portfolios")
+public class PortfolioEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
   private UUID id;
 
-  @Column(nullable = false, unique = true)
-  private String email;
+  @Column(name = "chain_id", nullable = false)
+  private UUID chainId;
 
-  @Column(name = "password_hash", nullable = false)
-  private String passwordHash;
-
-  @Column
+  @Column(nullable = false)
   private String name;
 
-  @Column(name = "is_active", nullable = false)
-  private boolean isActive = true;
+  @Column(name = "owner_organization_id")
+  private UUID ownerOrganizationId;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -39,33 +36,28 @@ public class UserEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  protected UserEntity() {
+  protected PortfolioEntity() {
   }
 
-  public UserEntity(String email, String passwordHash) {
-    this.email = email;
-    this.passwordHash = passwordHash;
-    this.isActive = true;
+  public PortfolioEntity(UUID chainId, String name) {
+    this.chainId = chainId;
+    this.name = name;
   }
 
   public UUID getId() {
     return id;
   }
 
-  public String getEmail() {
-    return email;
-  }
-
-  public String getPasswordHash() {
-    return passwordHash;
+  public UUID getChainId() {
+    return chainId;
   }
 
   public String getName() {
     return name;
   }
 
-  public boolean isActive() {
-    return isActive;
+  public UUID getOwnerOrganizationId() {
+    return ownerOrganizationId;
   }
 
   public Instant getCreatedAt() {

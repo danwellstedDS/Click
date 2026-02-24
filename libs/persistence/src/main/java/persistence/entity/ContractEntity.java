@@ -1,6 +1,6 @@
 package persistence.entity;
 
-import domain.Role;
+import domain.ContractStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,28 +9,32 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "tenant_memberships")
-public class TenantMembershipEntity {
+@Table(name = "contracts")
+public class ContractEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
   private UUID id;
 
-  @Column(name = "user_id", nullable = false)
-  private UUID userId;
-
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
+  @Column(name = "customer_account_id", nullable = false)
+  private UUID customerAccountId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private Role role;
+  private ContractStatus status;
+
+  @Column(name = "start_date", nullable = false)
+  private LocalDate startDate;
+
+  @Column(name = "end_date")
+  private LocalDate endDate;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -40,29 +44,33 @@ public class TenantMembershipEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  protected TenantMembershipEntity() {
+  protected ContractEntity() {
   }
 
-  public TenantMembershipEntity(UUID userId, UUID tenantId, Role role) {
-    this.userId = userId;
-    this.tenantId = tenantId;
-    this.role = role;
+  public ContractEntity(UUID customerAccountId, ContractStatus status, LocalDate startDate) {
+    this.customerAccountId = customerAccountId;
+    this.status = status;
+    this.startDate = startDate;
   }
 
   public UUID getId() {
     return id;
   }
 
-  public UUID getUserId() {
-    return userId;
+  public UUID getCustomerAccountId() {
+    return customerAccountId;
   }
 
-  public UUID getTenantId() {
-    return tenantId;
+  public ContractStatus getStatus() {
+    return status;
   }
 
-  public Role getRole() {
-    return role;
+  public LocalDate getStartDate() {
+    return startDate;
+  }
+
+  public LocalDate getEndDate() {
+    return endDate;
   }
 
   public Instant getCreatedAt() {
