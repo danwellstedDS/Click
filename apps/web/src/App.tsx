@@ -3,18 +3,10 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { TenantPickerPage } from "./features/auth/TenantPickerPage";
 import { PrivateRoute } from "./features/auth/PrivateRoute";
 import { AdminRoute } from "./features/auth/AdminRoute";
-import { AppLayout } from "./components/AppLayout";
 import { UsersListPage } from "./features/users/UsersListPage";
 import { UserDetailPage } from "./features/users/UserDetailPage";
 import { PropertiesListPage } from "./features/properties/PropertiesListPage";
-
-function Dashboard() {
-  return (
-    <AppLayout title="Overview Performance Dashboard" breadcrumb="Dashboard">
-      {/* placeholder — real content comes later */}
-    </AppLayout>
-  );
-}
+import { DashboardPage } from "./features/dashboard/DashboardPage";
 
 export function App() {
   return (
@@ -55,7 +47,7 @@ export function App() {
         path="/*"
         element={
           <PrivateRoute>
-            <Dashboard />
+            <DashboardPage />
           </PrivateRoute>
         }
       />
