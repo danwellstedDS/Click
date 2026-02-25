@@ -25,6 +25,8 @@ dependencies {
   testImplementation(libs.spring.boot.starter.test)
   testImplementation(libs.spring.boot.test)
   testImplementation(libs.spring.boot.test.autoconfigure)
+  testImplementation(libs.spring.boot.webmvc.test)
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test { useJUnitPlatform() }

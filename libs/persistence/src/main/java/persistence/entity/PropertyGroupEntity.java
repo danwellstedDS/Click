@@ -12,24 +12,27 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "hotels")
-public class HotelEntity {
+@Table(name = "property_groups")
+public class PropertyGroupEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
   private UUID id;
 
-  @Column(name = "chain_id", nullable = false)
-  private UUID chainId;
+  @Column(name = "parent_id")
+  private UUID parentId;
 
   @Column(nullable = false)
   private String name;
 
-  @Column(name = "is_active", nullable = false)
-  private boolean isActive = true;
+  @Column
+  private String timezone;
 
-  @Column(name = "external_hotel_ref")
-  private String externalHotelRef;
+  @Column
+  private String currency;
+
+  @Column(name = "primary_org_id")
+  private UUID primaryOrgId;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -39,33 +42,35 @@ public class HotelEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  protected HotelEntity() {
+  protected PropertyGroupEntity() {
   }
 
-  public HotelEntity(UUID chainId, String name) {
-    this.chainId = chainId;
+  public PropertyGroupEntity(String name) {
     this.name = name;
-    this.isActive = true;
   }
 
   public UUID getId() {
     return id;
   }
 
-  public UUID getChainId() {
-    return chainId;
+  public UUID getParentId() {
+    return parentId;
   }
 
   public String getName() {
     return name;
   }
 
-  public boolean isActive() {
-    return isActive;
+  public String getTimezone() {
+    return timezone;
   }
 
-  public String getExternalHotelRef() {
-    return externalHotelRef;
+  public String getCurrency() {
+    return currency;
+  }
+
+  public UUID getPrimaryOrgId() {
+    return primaryOrgId;
   }
 
   public Instant getCreatedAt() {

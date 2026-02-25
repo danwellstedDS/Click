@@ -11,8 +11,8 @@ public final class AccessScopeMapper {
     return new AccessScope(
         entity.getId(),
         entity.getType(),
-        entity.getChainId(),
-        entity.getHotelId(),
+        entity.getPropertyGroupId(),
+        entity.getPropertyId(),
         entity.getPortfolioId(),
         entity.getCreatedAt()
     );

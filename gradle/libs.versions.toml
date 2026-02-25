@@ -22,6 +22,10 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "spring-boot" }
 spring-boot-test = { module = "org.springframework.boot:spring-boot-test", version.ref = "spring-boot" }
 spring-boot-test-autoconfigure = { module = "org.springframework.boot:spring-boot-test-autoconfigure", version.ref = "spring-boot" }
+spring-boot-webmvc-test = { module = "org.springframework.boot:spring-boot-webmvc-test", version.ref = "spring-boot" }
+spring-boot-data-jpa-test = { module = "org.springframework.boot:spring-boot-data-jpa-test", version.ref = "spring-boot" }
+spring-boot-jpa-test = { module = "org.springframework.boot:spring-boot-jpa-test", version.ref = "spring-boot" }
+spring-boot-jdbc-test = { module = "org.springframework.boot:spring-boot-jdbc-test", version.ref = "spring-boot" }
 
 java-jwt = { module = "com.auth0:java-jwt", version.ref = "java-jwt" }
 

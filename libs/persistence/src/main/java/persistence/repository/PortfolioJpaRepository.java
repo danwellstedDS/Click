@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import persistence.entity.PortfolioEntity;
 
 public interface PortfolioJpaRepository extends JpaRepository<PortfolioEntity, UUID> {
-  List<PortfolioEntity> findAllByChainId(UUID chainId);
+  List<PortfolioEntity> findAllByPropertyGroupId(UUID propertyGroupId);
 }

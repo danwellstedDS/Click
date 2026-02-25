@@ -10,7 +10,7 @@ public final class PortfolioMapper {
   public static Portfolio toDomain(PortfolioEntity entity) {
     return Portfolio.create(
         entity.getId(),
-        entity.getChainId(),
+        entity.getPropertyGroupId(),
         entity.getName(),
         entity.getOwnerOrganizationId(),
         entity.getCreatedAt(),

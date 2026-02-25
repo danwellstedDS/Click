@@ -6,13 +6,13 @@ import api.application.dto.UserDetailResponse;
 import api.application.dto.UserDetailResponse.MembershipInfo;
 import api.application.dto.UserListItemResponse;
 import api.security.UserPrincipal;
-import domain.Chain;
 import domain.OrgMembership;
+import domain.PropertyGroup;
 import domain.Role;
 import domain.User;
 import domain.error.DomainError;
-import domain.repository.ChainRepository;
 import domain.repository.OrgMembershipRepository;
+import domain.repository.PropertyGroupRepository;
 import domain.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
@@ -25,18 +25,18 @@ public class UserManagementService {
 
   private final UserRepository userRepository;
   private final OrgMembershipRepository orgMembershipRepository;
-  private final ChainRepository chainRepository;
+  private final PropertyGroupRepository propertyGroupRepository;
   private final PasswordEncoder passwordEncoder;
 
   public UserManagementService(
       UserRepository userRepository,
       OrgMembershipRepository orgMembershipRepository,
-      ChainRepository chainRepository,
+      PropertyGroupRepository propertyGroupRepository,
       PasswordEncoder passwordEncoder
   ) {
     this.userRepository = userRepository;
     this.orgMembershipRepository = orgMembershipRepository;
-    this.chainRepository = chainRepository;
+    this.propertyGroupRepository = propertyGroupRepository;
     this.passwordEncoder = passwordEncoder;
   }
 
@@ -98,22 +98,22 @@ public class UserManagementService {
     OrgMembership orgMembership = orgMembershipRepository.findByUserAndOrganization(userId, orgId)
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    String roleInChain = orgMembership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
+    String roleInPropertyGroup = orgMembership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
 
     List<MembershipInfo> membershipInfos = orgMembershipRepository.findByUserId(userId).stream()
         .map(m -> {
-          String chainIdStr = chainRepository.findByPrimaryOrgId(m.organizationId())
-              .map(c -> c.getId().toString())
+          String propertyGroupIdStr = propertyGroupRepository.findByPrimaryOrgId(m.organizationId())
+              .map(pg -> pg.getId().toString())
               .orElse(m.organizationId().toString());
           String role = m.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
-          return new MembershipInfo(chainIdStr, role, m.createdAt());
+          return new MembershipInfo(propertyGroupIdStr, role, m.createdAt());
         })
         .toList();
 
     return new UserDetailResponse(
         user.getId(),
         user.getEmail(),
-        roleInChain,
+        roleInPropertyGroup,
         user.getCreatedAt(),
         user.getUpdatedAt(),
         membershipInfos
@@ -139,10 +139,10 @@ public class UserManagementService {
     userRepository.deleteById(userId);
   }
 
-  private UUID resolveOrgId(UUID chainId) {
-    Chain chain = chainRepository.findById(chainId)
-        .orElseThrow(() -> new DomainError.NotFound("CHN_001", "Chain not found"));
-    return chain.getPrimaryOrgId();
+  private UUID resolveOrgId(UUID propertyGroupId) {
+    PropertyGroup propertyGroup = propertyGroupRepository.findById(propertyGroupId)
+        .orElseThrow(() -> new DomainError.NotFound("PGR_001", "PropertyGroup not found"));
+    return propertyGroup.getPrimaryOrgId();
   }
 
   private static void requireAdmin(UserPrincipal principal) {
