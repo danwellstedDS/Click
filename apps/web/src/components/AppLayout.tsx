@@ -13,13 +13,7 @@ import {
   Divider,
 } from "@derbysoft/neat-design";
 import {
-  DashboardOutlined,
-  BarChartOutlined,
-  AuditOutlined,
-  WalletOutlined,
   HomeOutlined,
-  FileOutlined,
-  UnorderedListOutlined,
   BellOutlined,
   QuestionCircleOutlined,
   DownOutlined,
@@ -28,31 +22,19 @@ import {
   AppstoreOutlined,
   BankOutlined,
   TeamOutlined,
+  UserOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../features/auth/AuthContext";
 import logo from "../assets/logo.svg";
 
 const NAV_ROUTES: Record<string, string> = {
   users: "/users",
+  properties: "/properties",
 };
 
 const NAV_ITEMS = [
-  {
-    key: "dashboard",
-    icon: <DashboardOutlined />,
-    label: "Dashboard",
-    children: [
-      { key: "overview", label: "Overview Performance" },
-      { key: "custom-dashboard", label: "Custom Dashboard Catalogue" },
-      { key: "opportunity", label: "Opportunity Report" },
-    ],
-  },
-  { key: "reporting", icon: <BarChartOutlined />, label: "Reporting" },
-  { key: "bidding", icon: <AuditOutlined />, label: "Bidding" },
-  { key: "budgets", icon: <WalletOutlined />, label: "Budgets" },
   { key: "properties", icon: <HomeOutlined />, label: "Properties" },
-  { key: "content", icon: <FileOutlined />, label: "Content" },
-  { key: "feed-manager", icon: <UnorderedListOutlined />, label: "Feed manager" },
   { key: "users", icon: <TeamOutlined />, label: "Users" },
 ];
 
@@ -65,10 +47,21 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(true);
   const initial = user?.email?.[0]?.toUpperCase() ?? "?";
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
+
+  const profileMenuItems = [
+    { key: "profile", icon: <UserOutlined />, label: "Profile" },
+    { type: "divider" },
+    { key: "logout", icon: <LogoutOutlined />, label: "Sign out" },
+  ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -108,7 +101,7 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
               }}
             >
               <BankOutlined style={{ color: "rgba(0,0,0,0.55)" }} />
-              {user?.tenantId ?? "Account Name"}
+              {user?.tenantName ?? "Account Name"}
               <DownOutlined style={{ fontSize: 10, color: "rgba(0,0,0,0.45)", marginLeft: 2 }} />
             </Button>
           </Dropdown>
@@ -124,9 +117,20 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
           <QuestionCircleOutlined
             style={{ fontSize: 18, cursor: "pointer", color: "rgba(0,0,0,0.65)" }}
           />
-          <Avatar size="small" style={{ background: "#e74c3c", cursor: "pointer" }}>
-            {initial}
-          </Avatar>
+          <Dropdown
+            menu={{
+              items: profileMenuItems,
+              onClick: ({ key }) => {
+                if (key === "profile") navigate("/profile");
+                if (key === "logout") handleLogout();
+              },
+            }}
+            trigger={["click"]}
+          >
+            <Avatar size="small" style={{ background: "#e74c3c", cursor: "pointer" }}>
+              {initial}
+            </Avatar>
+          </Dropdown>
         </Space>
       </Layout.Header>
 
@@ -156,8 +160,6 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
             <Menu
               mode="inline"
               items={NAV_ITEMS}
-              defaultOpenKeys={["dashboard"]}
-              defaultSelectedKeys={["overview"]}
               style={{ borderRight: 0 }}
               onClick={({ key }) => {
                 if (NAV_ROUTES[key]) navigate(NAV_ROUTES[key]);
