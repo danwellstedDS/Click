@@ -7,8 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AccessScopeRepository {
-  List<AccessScope> findByChainId(UUID chainId);
-  Optional<AccessScope> findByChainIdAndType(UUID chainId, ScopeType type);
-  List<AccessScope> findByHotelId(UUID hotelId);
-  AccessScope create(ScopeType type, UUID chainId, UUID hotelId, UUID portfolioId);
+  List<AccessScope> findByPropertyGroupId(UUID propertyGroupId);
+  Optional<AccessScope> findByPropertyGroupIdAndType(UUID propertyGroupId, ScopeType type);
+  List<AccessScope> findByPropertyId(UUID propertyId);
+  AccessScope create(ScopeType type, UUID propertyGroupId, UUID propertyId, UUID portfolioId);
 }

@@ -9,13 +9,13 @@ import api.application.dto.UserInfo;
 import api.security.JwtService;
 import api.security.UserPrincipal;
 import domain.AuthClaims;
-import domain.Chain;
 import domain.OrgMembership;
+import domain.PropertyGroup;
 import domain.Role;
 import domain.User;
 import domain.error.DomainError;
-import domain.repository.ChainRepository;
 import domain.repository.OrgMembershipRepository;
+import domain.repository.PropertyGroupRepository;
 import domain.repository.RefreshTokenRepository;
 import domain.repository.UserRepository;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +38,7 @@ public class AuthService {
 
   private final UserRepository userRepository;
   private final OrgMembershipRepository orgMembershipRepository;
-  private final ChainRepository chainRepository;
+  private final PropertyGroupRepository propertyGroupRepository;
   private final RefreshTokenRepository refreshTokenRepository;
   private final JwtService jwtService;
   private final PasswordEncoder passwordEncoder;
@@ -46,14 +46,14 @@ public class AuthService {
   public AuthService(
       UserRepository userRepository,
       OrgMembershipRepository orgMembershipRepository,
-      ChainRepository chainRepository,
+      PropertyGroupRepository propertyGroupRepository,
       RefreshTokenRepository refreshTokenRepository,
       JwtService jwtService,
       PasswordEncoder passwordEncoder
   ) {
     this.userRepository = userRepository;
     this.orgMembershipRepository = orgMembershipRepository;
-    this.chainRepository = chainRepository;
+    this.propertyGroupRepository = propertyGroupRepository;
     this.refreshTokenRepository = refreshTokenRepository;
     this.jwtService = jwtService;
     this.passwordEncoder = passwordEncoder;
@@ -79,11 +79,11 @@ public class AuthService {
     }
 
     OrgMembership firstMembership = memberships.getFirst();
-    Chain chain = chainRepository.findByPrimaryOrgId(firstMembership.organizationId())
-        .orElseThrow(() -> new AuthException("AUTH_001", "No chain found for organization", 401));
+    PropertyGroup propertyGroup = propertyGroupRepository.findByPrimaryOrgId(firstMembership.organizationId())
+        .orElseThrow(() -> new AuthException("AUTH_001", "No property group found for organization", 401));
     Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
 
-    AuthClaims claims = new AuthClaims(user.getId(), chain.getId(), user.getEmail(), role);
+    AuthClaims claims = new AuthClaims(user.getId(), propertyGroup.getId(), user.getEmail(), role);
     String accessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
 
     String rawRefreshToken = UUID.randomUUID().toString();
@@ -92,8 +92,8 @@ public class AuthService {
     refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt);
 
     List<TenantInfo> tenants = memberships.stream()
-        .flatMap(m -> chainRepository.findByPrimaryOrgId(m.organizationId()).stream()
-            .map(c -> new TenantInfo(c.getId().toString(), (m.isOrgAdmin() ? Role.ADMIN : Role.VIEWER).name())))
+        .flatMap(m -> propertyGroupRepository.findByPrimaryOrgId(m.organizationId()).stream()
+            .map(pg -> new TenantInfo(pg.getId().toString(), (m.isOrgAdmin() ? Role.ADMIN : Role.VIEWER).name())))
         .toList();
 
     return new LoginResponse(
@@ -127,11 +127,11 @@ public class AuthService {
     }
 
     OrgMembership firstMembership = memberships.getFirst();
-    Chain chain = chainRepository.findByPrimaryOrgId(firstMembership.organizationId())
-        .orElseThrow(() -> new AuthException("AUTH_002", "No chain found for organization", 401));
+    PropertyGroup propertyGroup = propertyGroupRepository.findByPrimaryOrgId(firstMembership.organizationId())
+        .orElseThrow(() -> new AuthException("AUTH_002", "No property group found for organization", 401));
     Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
 
-    AuthClaims claims = new AuthClaims(user.getId(), chain.getId(), user.getEmail(), role);
+    AuthClaims claims = new AuthClaims(user.getId(), propertyGroup.getId(), user.getEmail(), role);
     String newAccessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
 
     refreshTokenRepository.deleteByTokenHash(tokenHash);
@@ -144,17 +144,17 @@ public class AuthService {
   }
 
   public TokenResponse switchTenant(UserPrincipal principal, String tenantIdRaw) {
-    UUID chainId = parseTenantId(tenantIdRaw);
+    UUID propertyGroupId = parseTenantId(tenantIdRaw);
 
-    Chain chain = chainRepository.findById(chainId)
-        .orElseThrow(() -> new AuthException("AUTH_403", "Chain not found", 403));
+    PropertyGroup propertyGroup = propertyGroupRepository.findById(propertyGroupId)
+        .orElseThrow(() -> new AuthException("AUTH_403", "PropertyGroup not found", 403));
 
     OrgMembership membership = orgMembershipRepository
-        .findByUserAndOrganization(principal.userId(), chain.getPrimaryOrgId())
-        .orElseThrow(() -> new AuthException("AUTH_403", "No access to requested chain", 403));
+        .findByUserAndOrganization(principal.userId(), propertyGroup.getPrimaryOrgId())
+        .orElseThrow(() -> new AuthException("AUTH_403", "No access to requested property group", 403));
 
     Role role = membership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
-    AuthClaims newClaims = new AuthClaims(principal.userId(), chainId, principal.getUsername(), role);
+    AuthClaims newClaims = new AuthClaims(principal.userId(), propertyGroupId, principal.getUsername(), role);
 
     String newToken = jwtService.createAccessToken(newClaims, ACCESS_TOKEN_SECONDS);
     return new TokenResponse(newToken);

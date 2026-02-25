@@ -12,24 +12,24 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "chains")
-public class ChainEntity {
+@Table(name = "properties")
+public class PropertyEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
   private UUID id;
 
+  @Column(name = "property_group_id", nullable = false)
+  private UUID propertyGroupId;
+
   @Column(nullable = false)
   private String name;
 
-  @Column
-  private String timezone;
+  @Column(name = "is_active", nullable = false)
+  private boolean isActive = true;
 
-  @Column
-  private String currency;
-
-  @Column(name = "primary_org_id")
-  private UUID primaryOrgId;
+  @Column(name = "external_property_ref")
+  private String externalPropertyRef;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -39,31 +39,33 @@ public class ChainEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  protected ChainEntity() {
+  protected PropertyEntity() {
   }
 
-  public ChainEntity(String name) {
+  public PropertyEntity(UUID propertyGroupId, String name) {
+    this.propertyGroupId = propertyGroupId;
     this.name = name;
+    this.isActive = true;
   }
 
   public UUID getId() {
     return id;
   }
 
+  public UUID getPropertyGroupId() {
+    return propertyGroupId;
+  }
+
   public String getName() {
     return name;
   }
 
-  public String getTimezone() {
-    return timezone;
+  public boolean isActive() {
+    return isActive;
   }
 
-  public String getCurrency() {
-    return currency;
-  }
-
-  public UUID getPrimaryOrgId() {
-    return primaryOrgId;
+  public String getExternalPropertyRef() {
+    return externalPropertyRef;
   }
 
   public Instant getCreatedAt() {

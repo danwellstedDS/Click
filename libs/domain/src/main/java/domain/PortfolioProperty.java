@@ -2,8 +2,8 @@ package domain;
 
 import java.util.UUID;
 
-public record PortfolioHotel(
+public record PortfolioProperty(
     UUID id,
     UUID portfolioId,
-    UUID hotelId
+    UUID propertyId
 ) {}

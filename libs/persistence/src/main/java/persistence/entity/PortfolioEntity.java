@@ -19,8 +19,8 @@ public class PortfolioEntity {
   @UuidGenerator
   private UUID id;
 
-  @Column(name = "chain_id", nullable = false)
-  private UUID chainId;
+  @Column(name = "property_group_id", nullable = false)
+  private UUID propertyGroupId;
 
   @Column(nullable = false)
   private String name;
@@ -39,8 +39,8 @@ public class PortfolioEntity {
   protected PortfolioEntity() {
   }
 
-  public PortfolioEntity(UUID chainId, String name) {
-    this.chainId = chainId;
+  public PortfolioEntity(UUID propertyGroupId, String name) {
+    this.propertyGroupId = propertyGroupId;
     this.name = name;
   }
 
@@ -48,8 +48,8 @@ public class PortfolioEntity {
     return id;
   }
 
-  public UUID getChainId() {
-    return chainId;
+  public UUID getPropertyGroupId() {
+    return propertyGroupId;
   }
 
   public String getName() {

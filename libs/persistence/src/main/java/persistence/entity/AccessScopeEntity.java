@@ -25,11 +25,11 @@ public class AccessScopeEntity {
   @Column(nullable = false)
   private ScopeType type;
 
-  @Column(name = "chain_id", nullable = false)
-  private UUID chainId;
+  @Column(name = "property_group_id", nullable = false)
+  private UUID propertyGroupId;
 
-  @Column(name = "hotel_id")
-  private UUID hotelId;
+  @Column(name = "property_id")
+  private UUID propertyId;
 
   @Column(name = "portfolio_id")
   private UUID portfolioId;
@@ -41,10 +41,10 @@ public class AccessScopeEntity {
   protected AccessScopeEntity() {
   }
 
-  public AccessScopeEntity(ScopeType type, UUID chainId, UUID hotelId, UUID portfolioId) {
+  public AccessScopeEntity(ScopeType type, UUID propertyGroupId, UUID propertyId, UUID portfolioId) {
     this.type = type;
-    this.chainId = chainId;
-    this.hotelId = hotelId;
+    this.propertyGroupId = propertyGroupId;
+    this.propertyId = propertyId;
     this.portfolioId = portfolioId;
   }
 
@@ -56,12 +56,12 @@ public class AccessScopeEntity {
     return type;
   }
 
-  public UUID getChainId() {
-    return chainId;
+  public UUID getPropertyGroupId() {
+    return propertyGroupId;
   }
 
-  public UUID getHotelId() {
-    return hotelId;
+  public UUID getPropertyId() {
+    return propertyId;
   }
 
   public UUID getPortfolioId() {

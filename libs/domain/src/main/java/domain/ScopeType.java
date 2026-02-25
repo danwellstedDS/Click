@@ -1,7 +1,7 @@
 package domain;
 
 public enum ScopeType {
-  CHAIN,
-  HOTEL,
+  PROPERTY_GROUP,
+  PROPERTY,
   PORTFOLIO
 }

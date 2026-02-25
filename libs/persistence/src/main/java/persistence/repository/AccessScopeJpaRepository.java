@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import persistence.entity.AccessScopeEntity;
 
 public interface AccessScopeJpaRepository extends JpaRepository<AccessScopeEntity, UUID> {
-  List<AccessScopeEntity> findByChainId(UUID chainId);
-  Optional<AccessScopeEntity> findByChainIdAndType(UUID chainId, ScopeType type);
-  List<AccessScopeEntity> findByHotelId(UUID hotelId);
+  List<AccessScopeEntity> findByPropertyGroupId(UUID propertyGroupId);
+  Optional<AccessScopeEntity> findByPropertyGroupIdAndType(UUID propertyGroupId, ScopeType type);
+  List<AccessScopeEntity> findByPropertyId(UUID propertyId);
 }

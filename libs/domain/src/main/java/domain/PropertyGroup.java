@@ -3,8 +3,9 @@ package domain;
 import java.time.Instant;
 import java.util.UUID;
 
-public final class Chain {
+public final class PropertyGroup {
   private final UUID id;
+  private final UUID parentId;
   private final String name;
   private final String timezone;
   private final String currency;
@@ -12,8 +13,9 @@ public final class Chain {
   private final Instant createdAt;
   private final Instant updatedAt;
 
-  private Chain(UUID id, String name, String timezone, String currency, UUID primaryOrgId, Instant createdAt, Instant updatedAt) {
+  private PropertyGroup(UUID id, UUID parentId, String name, String timezone, String currency, UUID primaryOrgId, Instant createdAt, Instant updatedAt) {
     this.id = id;
+    this.parentId = parentId;
     this.name = name;
     this.timezone = timezone;
     this.currency = currency;
@@ -22,12 +24,16 @@ public final class Chain {
     this.updatedAt = updatedAt;
   }
 
-  public static Chain create(UUID id, String name, String timezone, String currency, UUID primaryOrgId, Instant createdAt, Instant updatedAt) {
-    return new Chain(id, name, timezone, currency, primaryOrgId, createdAt, updatedAt);
+  public static PropertyGroup create(UUID id, UUID parentId, String name, String timezone, String currency, UUID primaryOrgId, Instant createdAt, Instant updatedAt) {
+    return new PropertyGroup(id, parentId, name, timezone, currency, primaryOrgId, createdAt, updatedAt);
   }
 
   public UUID getId() {
     return id;
+  }
+
+  public UUID getParentId() {
+    return parentId;
   }
 
   public String getName() {

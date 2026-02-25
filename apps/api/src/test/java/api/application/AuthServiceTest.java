@@ -8,12 +8,13 @@ import static org.mockito.Mockito.when;
 
 import api.application.dto.LoginRequest;
 import api.security.JwtService;
-import domain.Role;
-import domain.TenantMembership;
+import domain.OrgMembership;
+import domain.PropertyGroup;
 import domain.User;
 import domain.error.DomainError;
+import domain.repository.OrgMembershipRepository;
+import domain.repository.PropertyGroupRepository;
 import domain.repository.RefreshTokenRepository;
-import domain.repository.TenantMembershipRepository;
 import domain.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
@@ -32,7 +33,10 @@ class AuthServiceTest {
   private UserRepository userRepository;
 
   @Mock
-  private TenantMembershipRepository membershipRepository;
+  private OrgMembershipRepository orgMembershipRepository;
+
+  @Mock
+  private PropertyGroupRepository propertyGroupRepository;
 
   @Mock
   private RefreshTokenRepository refreshTokenRepository;
@@ -49,13 +53,18 @@ class AuthServiceTest {
   @Test
   void shouldReturnLoginResponseWhenCredentialsValid() {
     UUID userId = UUID.randomUUID();
-    UUID tenantId = UUID.randomUUID();
-    User user = User.create(userId, "user@example.com", "hash", Instant.now(), Instant.now());
+    UUID orgId = UUID.randomUUID();
+    UUID propertyGroupId = UUID.randomUUID();
+    User user = User.create(userId, "user@example.com", "hash", "Demo User", true, Instant.now(), Instant.now());
+    PropertyGroup propertyGroup = PropertyGroup.create(
+        propertyGroupId, null, "Demo Property Group", "UTC", "USD", orgId, Instant.now(), Instant.now()
+    );
+    OrgMembership membership = new OrgMembership(UUID.randomUUID(), userId, orgId, true, Instant.now());
 
     when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches(eq("password"), any())).thenReturn(true);
-    when(membershipRepository.findByUserId(userId))
-        .thenReturn(List.of(new TenantMembership(UUID.randomUUID(), userId, tenantId, Role.ADMIN, Instant.now(), Instant.now())));
+    when(orgMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+    when(propertyGroupRepository.findByPrimaryOrgId(orgId)).thenReturn(Optional.of(propertyGroup));
     when(jwtService.createAccessToken(any(), org.mockito.ArgumentMatchers.anyLong())).thenReturn("jwt-token");
 
     var response = authService.login(new LoginRequest("user@example.com", "password"));
@@ -75,7 +84,7 @@ class AuthServiceTest {
   @Test
   void shouldThrowAuthExceptionWhenPasswordInvalid() {
     UUID userId = UUID.randomUUID();
-    User user = User.create(userId, "user@example.com", "hash", Instant.now(), Instant.now());
+    User user = User.create(userId, "user@example.com", "hash", "Demo User", true, Instant.now(), Instant.now());
 
     when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches(eq("bad"), any())).thenReturn(false);

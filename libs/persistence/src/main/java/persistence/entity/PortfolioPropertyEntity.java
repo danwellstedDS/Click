@@ -9,8 +9,8 @@ import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "portfolio_hotels")
-public class PortfolioHotelEntity {
+@Table(name = "portfolio_properties")
+public class PortfolioPropertyEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
@@ -19,15 +19,15 @@ public class PortfolioHotelEntity {
   @Column(name = "portfolio_id", nullable = false)
   private UUID portfolioId;
 
-  @Column(name = "hotel_id", nullable = false)
-  private UUID hotelId;
+  @Column(name = "property_id", nullable = false)
+  private UUID propertyId;
 
-  protected PortfolioHotelEntity() {
+  protected PortfolioPropertyEntity() {
   }
 
-  public PortfolioHotelEntity(UUID portfolioId, UUID hotelId) {
+  public PortfolioPropertyEntity(UUID portfolioId, UUID propertyId) {
     this.portfolioId = portfolioId;
-    this.hotelId = hotelId;
+    this.propertyId = propertyId;
   }
 
   public UUID getId() {
@@ -38,7 +38,7 @@ public class PortfolioHotelEntity {
     return portfolioId;
   }
 
-  public UUID getHotelId() {
-    return hotelId;
+  public UUID getPropertyId() {
+    return propertyId;
   }
 }

@@ -19,28 +19,28 @@ public class AccessScopeRepositoryImpl implements AccessScopeRepository {
   }
 
   @Override
-  public List<AccessScope> findByChainId(UUID chainId) {
-    return accessScopeJpaRepository.findByChainId(chainId).stream()
+  public List<AccessScope> findByPropertyGroupId(UUID propertyGroupId) {
+    return accessScopeJpaRepository.findByPropertyGroupId(propertyGroupId).stream()
         .map(AccessScopeMapper::toDomain)
         .toList();
   }
 
   @Override
-  public Optional<AccessScope> findByChainIdAndType(UUID chainId, ScopeType type) {
-    return accessScopeJpaRepository.findByChainIdAndType(chainId, type)
+  public Optional<AccessScope> findByPropertyGroupIdAndType(UUID propertyGroupId, ScopeType type) {
+    return accessScopeJpaRepository.findByPropertyGroupIdAndType(propertyGroupId, type)
         .map(AccessScopeMapper::toDomain);
   }
 
   @Override
-  public List<AccessScope> findByHotelId(UUID hotelId) {
-    return accessScopeJpaRepository.findByHotelId(hotelId).stream()
+  public List<AccessScope> findByPropertyId(UUID propertyId) {
+    return accessScopeJpaRepository.findByPropertyId(propertyId).stream()
         .map(AccessScopeMapper::toDomain)
         .toList();
   }
 
   @Override
-  public AccessScope create(ScopeType type, UUID chainId, UUID hotelId, UUID portfolioId) {
-    AccessScopeEntity entity = new AccessScopeEntity(type, chainId, hotelId, portfolioId);
+  public AccessScope create(ScopeType type, UUID propertyGroupId, UUID propertyId, UUID portfolioId) {
+    AccessScopeEntity entity = new AccessScopeEntity(type, propertyGroupId, propertyId, portfolioId);
     return AccessScopeMapper.toDomain(accessScopeJpaRepository.saveAndFlush(entity));
   }
 }

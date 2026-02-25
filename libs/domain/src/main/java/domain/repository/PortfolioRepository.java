@@ -7,6 +7,6 @@ import java.util.UUID;
 
 public interface PortfolioRepository {
   Optional<Portfolio> findById(UUID id);
-  List<Portfolio> findAllByChainId(UUID chainId);
-  Portfolio create(UUID chainId, String name);
+  List<Portfolio> findAllByPropertyGroupId(UUID propertyGroupId);
+  Portfolio create(UUID propertyGroupId, String name);
 }

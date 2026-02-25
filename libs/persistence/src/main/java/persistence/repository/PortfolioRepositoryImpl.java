@@ -23,15 +23,15 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
   }
 
   @Override
-  public List<Portfolio> findAllByChainId(UUID chainId) {
-    return portfolioJpaRepository.findAllByChainId(chainId).stream()
+  public List<Portfolio> findAllByPropertyGroupId(UUID propertyGroupId) {
+    return portfolioJpaRepository.findAllByPropertyGroupId(propertyGroupId).stream()
         .map(PortfolioMapper::toDomain)
         .toList();
   }
 
   @Override
-  public Portfolio create(UUID chainId, String name) {
-    PortfolioEntity entity = new PortfolioEntity(chainId, name);
+  public Portfolio create(UUID propertyGroupId, String name) {
+    PortfolioEntity entity = new PortfolioEntity(propertyGroupId, name);
     return PortfolioMapper.toDomain(portfolioJpaRepository.saveAndFlush(entity));
   }
 }

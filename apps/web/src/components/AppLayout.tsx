@@ -50,7 +50,7 @@ const NAV_ITEMS = [
   { key: "reporting", icon: <BarChartOutlined />, label: "Reporting" },
   { key: "bidding", icon: <AuditOutlined />, label: "Bidding" },
   { key: "budgets", icon: <WalletOutlined />, label: "Budgets" },
-  { key: "hotels", icon: <HomeOutlined />, label: "Hotels" },
+  { key: "properties", icon: <HomeOutlined />, label: "Properties" },
   { key: "content", icon: <FileOutlined />, label: "Content" },
   { key: "feed-manager", icon: <UnorderedListOutlined />, label: "Feed manager" },
   { key: "users", icon: <TeamOutlined />, label: "Users" },
