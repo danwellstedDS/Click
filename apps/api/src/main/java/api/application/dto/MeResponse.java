@@ -1,3 +1,3 @@
 package api.application.dto;
 
-public record MeResponse(String id, String email, String tenantId, String role) {}
+public record MeResponse(String id, String email, String tenantId, String tenantName, String role) {}

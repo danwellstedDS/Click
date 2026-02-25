@@ -161,10 +161,14 @@ public class AuthService {
   }
 
   public MeResponse me(UserPrincipal principal) {
+    String tenantName = propertyGroupRepository.findById(principal.tenantId())
+        .map(PropertyGroup::getName)
+        .orElse(principal.tenantId().toString());
     return new MeResponse(
         principal.userId().toString(),
         principal.getUsername(),
         principal.tenantId().toString(),
+        tenantName,
         principal.role().name()
     );
   }

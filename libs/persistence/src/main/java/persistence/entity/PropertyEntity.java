@@ -48,6 +48,13 @@ public class PropertyEntity {
     this.isActive = true;
   }
 
+  public PropertyEntity(UUID propertyGroupId, String name, boolean isActive, String externalPropertyRef) {
+    this.propertyGroupId = propertyGroupId;
+    this.name = name;
+    this.isActive = isActive;
+    this.externalPropertyRef = externalPropertyRef;
+  }
+
   public UUID getId() {
     return id;
   }
@@ -74,5 +81,9 @@ public class PropertyEntity {
 
   public Instant getUpdatedAt() {
     return updatedAt;
+  }
+
+  public void setIsActive(boolean isActive) {
+    this.isActive = isActive;
   }
 }
