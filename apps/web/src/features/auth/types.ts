@@ -19,6 +19,7 @@ export interface MeResponse {
   id: string;
   email: string;
   tenantId: string;
+  tenantName: string;
   role: "ADMIN" | "VIEWER";
 }
 

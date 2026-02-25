@@ -8,5 +8,6 @@ import java.util.UUID;
 public interface PropertyRepository {
   Optional<Property> findById(UUID id);
   List<Property> findAllByPropertyGroupId(UUID propertyGroupId);
-  Property create(UUID propertyGroupId, String name);
+  Property create(UUID propertyGroupId, String name, boolean isActive, String externalPropertyRef);
+  void deactivate(UUID id);
 }

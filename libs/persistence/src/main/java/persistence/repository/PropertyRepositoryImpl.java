@@ -30,8 +30,16 @@ public class PropertyRepositoryImpl implements PropertyRepository {
   }
 
   @Override
-  public Property create(UUID propertyGroupId, String name) {
-    PropertyEntity entity = new PropertyEntity(propertyGroupId, name);
+  public Property create(UUID propertyGroupId, String name, boolean isActive, String externalPropertyRef) {
+    PropertyEntity entity = new PropertyEntity(propertyGroupId, name, isActive, externalPropertyRef);
     return PropertyMapper.toDomain(propertyJpaRepository.saveAndFlush(entity));
+  }
+
+  @Override
+  public void deactivate(UUID id) {
+    propertyJpaRepository.findById(id).ifPresent(e -> {
+      e.setIsActive(false);
+      propertyJpaRepository.saveAndFlush(e);
+    });
   }
 }

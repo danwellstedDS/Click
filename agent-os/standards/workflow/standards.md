@@ -179,5 +179,3 @@ commit cleanup [REFACTOR] separately
 4. Never merge with failing CI.
 5. Prefer vertical slices; keep FE and BE changes separable where possible.
 6. Keep PRs small; if too big, split into stacked PRs.
-
-If you want, I can output this as a CONTRIBUTING.md section plus a git config/hooks suggestion (commit-msg hook to enforce prefixes and [RED]/[GREEN]/[REFACTOR]).

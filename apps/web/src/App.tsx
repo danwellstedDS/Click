@@ -6,6 +6,7 @@ import { AdminRoute } from "./features/auth/AdminRoute";
 import { AppLayout } from "./components/AppLayout";
 import { UsersListPage } from "./features/users/UsersListPage";
 import { UserDetailPage } from "./features/users/UserDetailPage";
+import { PropertiesListPage } from "./features/properties/PropertiesListPage";
 
 function Dashboard() {
   return (
@@ -20,6 +21,16 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/select-tenant" element={<TenantPickerPage />} />
+      <Route
+        path="/properties"
+        element={
+          <PrivateRoute>
+            <AdminRoute>
+              <PropertiesListPage />
+            </AdminRoute>
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/users"
         element={
