@@ -24,18 +24,21 @@ import {
   TeamOutlined,
   UserOutlined,
   LogoutOutlined,
+  DashboardOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../features/auth/AuthContext";
 import logo from "../assets/logo.svg";
 
 const NAV_ROUTES: Record<string, string> = {
+  dashboard: "/",
   users: "/users",
   properties: "/properties",
 };
 
 const NAV_ITEMS = [
-  { key: "properties", icon: <HomeOutlined />, label: "Properties" },
-  { key: "users", icon: <TeamOutlined />, label: "Users" },
+  { key: "dashboard",  icon: <DashboardOutlined />, label: "Dashboard" },
+  { key: "properties", icon: <HomeOutlined />,      label: "Properties" },
+  { key: "users",      icon: <TeamOutlined />,      label: "Users" },
 ];
 
 const HEADER_HEIGHT = 56;

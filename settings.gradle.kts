@@ -18,7 +18,5 @@ dependencyResolutionManagement {
 }
 
 include(
-  ":apps:api",
-  ":libs:domain",
-  ":libs:persistence"
+  ":apps:api"
 )
