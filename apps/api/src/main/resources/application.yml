@@ -15,7 +15,7 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
-    locations: filesystem:infra/db/migrations
+    locations: classpath:db/migration
 
 jwt:
   secret: ${JWT_SECRET:}
