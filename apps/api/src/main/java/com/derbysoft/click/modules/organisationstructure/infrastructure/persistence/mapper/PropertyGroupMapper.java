@@ -7,7 +7,7 @@ public final class PropertyGroupMapper {
   private PropertyGroupMapper() {}
 
   public static PropertyGroup toDomain(PropertyGroupEntity entity) {
-    return PropertyGroup.create(
+    return PropertyGroup.reconstitute(
         entity.getId(),
         entity.getParentId(),
         entity.getName(),

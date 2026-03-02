@@ -10,7 +10,7 @@ java {
 }
 
 springBoot {
-  mainClass.set("com.derbysoft.click.ApiApplication")
+  mainClass.set("com.derbysoft.click.app.ApiApplication")
 }
 
 dependencies {
@@ -19,7 +19,7 @@ dependencies {
   implementation(libs.spring.boot.starter.actuator)
   implementation(libs.spring.boot.starter.data.jpa)
   implementation(libs.spring.boot.starter.validation)
-  implementation(libs.flyway)
+  implementation(libs.spring.boot.starter.flyway)
   implementation(libs.flyway.postgres)
   runtimeOnly(libs.postgres)
   implementation(libs.java.jwt)
@@ -37,10 +37,8 @@ tasks.test { useJUnitPlatform() }
 tasks.jacocoTestCoverageVerification {
   violationRules {
     rule {
-      limits {
-        limit {
-          minimum = "0.90".toBigDecimal()
-        }
+      limit {
+        minimum = "0.90".toBigDecimal()
       }
     }
   }

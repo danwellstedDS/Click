@@ -10,10 +10,13 @@ import org.junit.jupiter.api.Test;
  * Enforces bounded context boundary rules:
  *
  * <ul>
- *   <li>BC1 (identity-access) must only access BC3 (organisation-structure) via its
+ *   <li>BC1 (identity-access) domain must not reference BC3 (organisation-structure) at all.
+ *   <li>BC1 (identity-access) application/infrastructure must only access BC3 via its
  *       {@code api/} contracts and ports — never via domain, infrastructure, or interfaces.
  *   <li>BC3 domain layer must not depend on BC1 domain or infrastructure.
  *   <li>BC3 domain layer must not depend on BC2 (tenant-governance) internals.
+ *   <li>BC4 (channel-integration) domain must be independent of other BC domains.
+ *   <li>BC4 must only access BC2 (tenant-governance) via its {@code api/} package.
  * </ul>
  *
  * <p><strong>Note:</strong> BC3's application and interfaces layers intentionally reference
@@ -26,6 +29,15 @@ class BoundaryRulesTest {
 
   private static final JavaClasses classes = new ClassFileImporter()
       .importPackages("com.derbysoft.click.modules");
+
+  @Test
+  void identityAccessDomainShouldNotReferenceOrganisationStructure() {
+    noClasses()
+        .that().resideInAPackage("com.derbysoft.click.modules.identityaccess.domain..")
+        .should().dependOnClassesThat()
+        .resideInAnyPackage("com.derbysoft.click.modules.organisationstructure..")
+        .check(classes);
+  }
 
   @Test
   void identityAccessShouldNotDirectlyImportOrganisationStructureDomainOrInfrastructure() {
@@ -75,6 +87,33 @@ class BoundaryRulesTest {
         .resideInAnyPackage(
             "com.derbysoft.click.modules.identityaccess..",
             "com.derbysoft.click.modules.organisationstructure.."
+        )
+        .check(classes);
+  }
+
+  @Test
+  void channelIntegrationDomainShouldBeIndependentOfOtherBCDomains() {
+    noClasses()
+        .that().resideInAPackage("com.derbysoft.click.modules.channelintegration.domain..")
+        .should().dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.derbysoft.click.modules.identityaccess..",
+            "com.derbysoft.click.modules.tenantgovernance.domain..",
+            "com.derbysoft.click.modules.organisationstructure.."
+        )
+        .check(classes);
+  }
+
+  @Test
+  void channelIntegrationShouldOnlyAccessTenantGovernanceViaApi() {
+    noClasses()
+        .that().resideInAPackage("com.derbysoft.click.modules.channelintegration..")
+        .should().dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.derbysoft.click.modules.tenantgovernance.domain..",
+            "com.derbysoft.click.modules.tenantgovernance.infrastructure..",
+            "com.derbysoft.click.modules.tenantgovernance.application..",
+            "com.derbysoft.click.modules.tenantgovernance.interfaces.."
         )
         .check(classes);
   }

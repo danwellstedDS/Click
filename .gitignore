@@ -6,3 +6,4 @@
 apps/web/node_modules/
 apps/web/dist/
 .claude/settings.local.json
+infra/secrets/

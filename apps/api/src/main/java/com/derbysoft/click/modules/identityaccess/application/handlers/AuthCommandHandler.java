@@ -1,12 +1,13 @@
 package com.derbysoft.click.modules.identityaccess.application.handlers;
 
-import com.derbysoft.click.modules.identityaccess.domain.OrgMembershipRepository;
+import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
 import com.derbysoft.click.modules.identityaccess.domain.RefreshTokenRepository;
+import com.derbysoft.click.modules.identityaccess.domain.TenantMembershipRepository;
 import com.derbysoft.click.modules.identityaccess.domain.UserRepository;
-import com.derbysoft.click.modules.identityaccess.domain.entities.OrgMembership;
 import com.derbysoft.click.modules.identityaccess.domain.aggregates.User;
-import com.derbysoft.click.modules.identityaccess.domain.valueobjects.AuthClaims;
-import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
+import com.derbysoft.click.modules.identityaccess.domain.entities.TenantMembership;
+import com.derbysoft.click.modules.identityaccess.domain.events.UserAuthenticated;
+import com.derbysoft.click.modules.identityaccess.domain.valueobjects.ActorContext;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.JwtService;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.LoginRequest;
@@ -17,6 +18,7 @@ import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TokenRespo
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserInfo;
 import com.derbysoft.click.modules.organisationstructure.api.contracts.PropertyGroupInfo;
 import com.derbysoft.click.modules.organisationstructure.api.ports.PropertyGroupQueryPort;
+import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -37,26 +39,29 @@ public class AuthCommandHandler {
       "$2a$12$dummyhashfortimingtattackprevention000000000000000000000";
 
   private final UserRepository userRepository;
-  private final OrgMembershipRepository orgMembershipRepository;
+  private final TenantMembershipRepository tenantMembershipRepository;
   private final PropertyGroupQueryPort propertyGroupQueryPort;
   private final RefreshTokenRepository refreshTokenRepository;
   private final JwtService jwtService;
   private final PasswordEncoder passwordEncoder;
+  private final InProcessEventBus eventBus;
 
   public AuthCommandHandler(
       UserRepository userRepository,
-      OrgMembershipRepository orgMembershipRepository,
+      TenantMembershipRepository tenantMembershipRepository,
       PropertyGroupQueryPort propertyGroupQueryPort,
       RefreshTokenRepository refreshTokenRepository,
       JwtService jwtService,
-      PasswordEncoder passwordEncoder
+      PasswordEncoder passwordEncoder,
+      InProcessEventBus eventBus
   ) {
     this.userRepository = userRepository;
-    this.orgMembershipRepository = orgMembershipRepository;
+    this.tenantMembershipRepository = tenantMembershipRepository;
     this.propertyGroupQueryPort = propertyGroupQueryPort;
     this.refreshTokenRepository = refreshTokenRepository;
     this.jwtService = jwtService;
     this.passwordEncoder = passwordEncoder;
+    this.eventBus = eventBus;
   }
 
   public LoginResponse login(LoginRequest request) {
@@ -73,27 +78,27 @@ public class AuthCommandHandler {
     }
 
     User user = userOpt.get();
-    List<OrgMembership> memberships = orgMembershipRepository.findByUserId(user.getId());
+    List<TenantMembership> memberships = tenantMembershipRepository.findByUserId(user.getId());
     if (memberships.isEmpty()) {
-      throw new DomainError.Unauthenticated("AUTH_001", "No organization memberships found");
+      throw new DomainError.Unauthenticated("AUTH_001", "No tenant memberships found");
     }
 
-    OrgMembership firstMembership = memberships.getFirst();
-    PropertyGroupInfo propertyGroup = propertyGroupQueryPort.findInfoByPrimaryOrgId(firstMembership.organizationId())
-        .orElseThrow(() -> new DomainError.Unauthenticated("AUTH_001", "No property group found for organization"));
-    Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
-
-    AuthClaims claims = new AuthClaims(user.getId(), propertyGroup.id(), user.getEmail(), role);
-    String accessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
+    TenantMembership firstMembership = memberships.getFirst();
+    ActorContext context = new ActorContext(user.getId(), firstMembership.tenantId(), user.getEmail(), firstMembership.role());
+    String accessToken = jwtService.createAccessToken(context, ACCESS_TOKEN_SECONDS);
 
     String rawRefreshToken = UUID.randomUUID().toString();
     String refreshTokenHash = sha256(rawRefreshToken);
     Instant expiresAt = Instant.now().plusSeconds(REFRESH_TOKEN_DAYS * 86400L);
     refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt);
 
+    eventBus.publish(EventEnvelope.of(
+        UserAuthenticated.class.getSimpleName(),
+        new UserAuthenticated(user.getId(), user.getEmail(), firstMembership.tenantId(), firstMembership.role(), Instant.now())
+    ));
+
     List<TenantInfo> tenants = memberships.stream()
-        .flatMap(m -> propertyGroupQueryPort.findInfoByPrimaryOrgId(m.organizationId()).stream()
-            .map(pg -> new TenantInfo(pg.id().toString(), (m.isOrgAdmin() ? Role.ADMIN : Role.VIEWER).name())))
+        .map(m -> new TenantInfo(m.tenantId().toString(), m.role().name()))
         .toList();
 
     return new LoginResponse(
@@ -121,18 +126,14 @@ public class AuthCommandHandler {
     User user = userRepository.findById(storedToken.getUserId())
         .orElseThrow(() -> new DomainError.Unauthenticated("AUTH_002", "User not found"));
 
-    List<OrgMembership> memberships = orgMembershipRepository.findByUserId(user.getId());
+    List<TenantMembership> memberships = tenantMembershipRepository.findByUserId(user.getId());
     if (memberships.isEmpty()) {
-      throw new DomainError.Unauthenticated("AUTH_002", "No organization memberships");
+      throw new DomainError.Unauthenticated("AUTH_002", "No tenant memberships");
     }
 
-    OrgMembership firstMembership = memberships.getFirst();
-    PropertyGroupInfo propertyGroup = propertyGroupQueryPort.findInfoByPrimaryOrgId(firstMembership.organizationId())
-        .orElseThrow(() -> new DomainError.Unauthenticated("AUTH_002", "No property group found for organization"));
-    Role role = firstMembership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
-
-    AuthClaims claims = new AuthClaims(user.getId(), propertyGroup.id(), user.getEmail(), role);
-    String newAccessToken = jwtService.createAccessToken(claims, ACCESS_TOKEN_SECONDS);
+    TenantMembership firstMembership = memberships.getFirst();
+    ActorContext context = new ActorContext(user.getId(), firstMembership.tenantId(), user.getEmail(), firstMembership.role());
+    String newAccessToken = jwtService.createAccessToken(context, ACCESS_TOKEN_SECONDS);
 
     refreshTokenRepository.deleteByTokenHash(tokenHash);
     String newRawRefreshToken = UUID.randomUUID().toString();
@@ -144,19 +145,17 @@ public class AuthCommandHandler {
   }
 
   public TokenResponse switchTenant(UserPrincipal principal, String tenantIdRaw) {
-    UUID propertyGroupId = parseTenantId(tenantIdRaw);
+    UUID tenantId = parseTenantId(tenantIdRaw);
 
-    PropertyGroupInfo propertyGroup = propertyGroupQueryPort.findInfoById(propertyGroupId)
+    propertyGroupQueryPort.findInfoById(tenantId)
         .orElseThrow(() -> new DomainError.Forbidden("AUTH_403", "PropertyGroup not found"));
 
-    OrgMembership membership = orgMembershipRepository
-        .findByUserAndOrganization(principal.userId(), propertyGroup.primaryOrgId())
+    TenantMembership membership = tenantMembershipRepository
+        .findByUserAndTenant(principal.userId(), tenantId)
         .orElseThrow(() -> new DomainError.Forbidden("AUTH_403", "No access to requested property group"));
 
-    Role role = membership.isOrgAdmin() ? Role.ADMIN : Role.VIEWER;
-    AuthClaims newClaims = new AuthClaims(principal.userId(), propertyGroupId, principal.getUsername(), role);
-
-    String newToken = jwtService.createAccessToken(newClaims, ACCESS_TOKEN_SECONDS);
+    ActorContext newContext = new ActorContext(principal.userId(), tenantId, principal.getUsername(), membership.role());
+    String newToken = jwtService.createAccessToken(newContext, ACCESS_TOKEN_SECONDS);
     return new TokenResponse(newToken);
   }
 

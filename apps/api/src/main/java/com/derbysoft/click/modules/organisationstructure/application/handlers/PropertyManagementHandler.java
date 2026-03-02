@@ -1,10 +1,13 @@
 package com.derbysoft.click.modules.organisationstructure.application.handlers;
 
+import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.organisationstructure.domain.PropertyRepository;
 import com.derbysoft.click.modules.organisationstructure.domain.entities.Property;
+import com.derbysoft.click.modules.organisationstructure.domain.events.PropertyCreated;
 import com.derbysoft.click.modules.organisationstructure.interfaces.http.dto.CreatePropertyRequest;
 import com.derbysoft.click.modules.organisationstructure.interfaces.http.dto.PropertyListItemResponse;
+import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.util.List;
 import java.util.UUID;
@@ -15,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PropertyManagementHandler {
 
   private final PropertyRepository propertyRepository;
+  private final InProcessEventBus eventBus;
 
-  public PropertyManagementHandler(PropertyRepository propertyRepository) {
+  public PropertyManagementHandler(PropertyRepository propertyRepository, InProcessEventBus eventBus) {
     this.propertyRepository = propertyRepository;
+    this.eventBus = eventBus;
   }
 
   public List<PropertyListItemResponse> listProperties(UserPrincipal principal) {
@@ -42,6 +47,12 @@ public class PropertyManagementHandler {
         request.isActive(),
         request.externalPropertyRef()
     );
+
+    eventBus.publish(EventEnvelope.of(
+        PropertyCreated.class.getSimpleName(),
+        new PropertyCreated(property.getId(), property.getPropertyGroupId(), property.getName(), property.getCreatedAt())
+    ));
+
     return toDto(property);
   }
 

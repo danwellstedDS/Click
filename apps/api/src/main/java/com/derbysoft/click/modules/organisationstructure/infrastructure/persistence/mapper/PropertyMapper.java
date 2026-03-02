@@ -7,7 +7,7 @@ public final class PropertyMapper {
   private PropertyMapper() {}
 
   public static Property toDomain(PropertyEntity entity) {
-    return Property.create(
+    return Property.reconstitute(
         entity.getId(),
         entity.getPropertyGroupId(),
         entity.getName(),
