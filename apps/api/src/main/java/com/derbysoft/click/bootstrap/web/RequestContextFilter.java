@@ -15,7 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Assigns a unique request ID to each incoming HTTP request, exposes it as a request attribute
  * and response header, and populates the actor context from the security context for downstream use.
  */
-@Component
+@Component("apiRequestContextFilter")
 public class RequestContextFilter extends OncePerRequestFilter {
 
   public static final String REQUEST_ID_ATTR = "requestId";
