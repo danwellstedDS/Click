@@ -43,4 +43,12 @@ public class TenantMembershipRepositoryImpl implements TenantMembershipRepositor
     TenantMembershipEntity entity = new TenantMembershipEntity(membershipId, userId, tenantId, role.name());
     return TenantMembershipMapper.toDomain(jpaRepository.saveAndFlush(entity));
   }
+
+  @Override
+  public TenantMembership updateRole(UUID userId, UUID tenantId, Role role) {
+    jpaRepository.updateRole(userId, tenantId, role.name());
+    return jpaRepository.findByUserIdAndTenantId(userId, tenantId)
+        .map(TenantMembershipMapper::toDomain)
+        .orElseThrow();
+  }
 }

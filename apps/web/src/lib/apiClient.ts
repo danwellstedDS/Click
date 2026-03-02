@@ -29,6 +29,10 @@ export async function apiRequest<T>(
     },
   });
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   const body: ApiResponse<T> = await res.json();
 
   if (!body.success || !res.ok) {

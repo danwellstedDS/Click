@@ -11,4 +11,5 @@ public interface TenantMembershipRepository {
   List<TenantMembership> findByTenantId(UUID tenantId);
   Optional<TenantMembership> findByUserAndTenant(UUID userId, UUID tenantId);
   TenantMembership create(UUID membershipId, UUID userId, UUID tenantId, Role role);
+  TenantMembership updateRole(UUID userId, UUID tenantId, Role role);
 }

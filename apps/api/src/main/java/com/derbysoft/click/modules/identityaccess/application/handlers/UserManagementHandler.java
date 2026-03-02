@@ -9,6 +9,7 @@ import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUserRequest;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUserResponse;
+import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UpdateUserRoleRequest;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserDetailResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserDetailResponse.MembershipInfo;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserListItemResponse;
@@ -109,6 +110,32 @@ public class UserManagementHandler {
         user.getUpdatedAt(),
         membershipInfos
     );
+  }
+
+  @Transactional
+  public UserListItemResponse updateUserRole(UUID userId, UpdateUserRoleRequest request, UserPrincipal principal) {
+    requireAdmin(principal);
+
+    if (request == null || isBlank(request.role())) {
+      throw new DomainError.ValidationError("VAL_001", "role is required");
+    }
+
+    Role role;
+    try {
+      role = Role.valueOf(request.role());
+    } catch (IllegalArgumentException e) {
+      throw new DomainError.ValidationError("VAL_001", "Invalid role: " + request.role());
+    }
+
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
+
+    tenantMembershipRepository.findByUserAndTenant(userId, principal.tenantId())
+        .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found in this tenant"));
+
+    TenantMembership updated = tenantMembershipRepository.updateRole(userId, principal.tenantId(), role);
+
+    return new UserListItemResponse(user.getId(), user.getEmail(), updated.role().name(), user.getCreatedAt());
   }
 
   @Transactional

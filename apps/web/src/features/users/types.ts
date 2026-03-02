@@ -1,13 +1,15 @@
+export type UserRole = "VIEWER" | "ANALYST" | "MANAGER" | "ADMIN" | "SUPPORT";
+
 export interface UserListItem {
   id: string;
   email: string;
-  role: "ADMIN" | "VIEWER";
+  role: UserRole;
   createdAt: string;
 }
 
 export interface MembershipInfo {
   tenantId: string;
-  role: "ADMIN" | "VIEWER";
+  role: UserRole;
   memberSince: string;
 }
 
@@ -18,7 +20,11 @@ export interface UserDetail extends UserListItem {
 
 export interface CreateUserRequest {
   email: string;
-  role: "ADMIN" | "VIEWER";
+  role: UserRole;
+}
+
+export interface UpdateUserRoleRequest {
+  role: UserRole;
 }
 
 export interface CreateUserResponse {
