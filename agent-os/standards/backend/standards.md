@@ -1,6 +1,6 @@
 ---
 description: Backend development standards, best practices, and conventions for the Java 25/Spring Boot 4 application including Domain-Driven Design, SOLID principles, architecture patterns, API design, and testing practices
-globs: ["apps/api/src/**/*.java", "libs/domain/src/**/*.java", "libs/persistence/src/**/*.java", "apps/api/build.gradle.kts", "apps/api/src/main/resources/**/*.{yml,yaml,properties}", "tools/scripts/**/*.sh"]
+globs: ["apps/api/src/**/*.java", "apps/api/build.gradle.kts", "apps/api/src/main/resources/**/*.{yml,yaml,properties}", "tools/scripts/**/*.sh"]
 alwaysApply: true
 ---
 
@@ -116,75 +116,223 @@ Domain-Driven Design is a methodology that focuses on modeling software accordin
 
 The backend follows a layered DDD architecture spread across Gradle sub-projects:
 
-**Presentation Layer** (`apps/api/src/main/java/api/presentation/`)
+The same four layers exist within every bounded context, scoped under `modules/[bc]/`:
+
+**Interfaces Layer** (`modules/[bc]/interfaces/http/`)
 - `@RestController` classes handle HTTP requests/responses
-- Controllers delegate to Application layer services
+- Controllers delegate to application-layer handlers or use-cases
+- BC-owned DTOs live in `interfaces/http/dto/`
 - No business logic; only HTTP translation (parsing, serialisation, status codes)
 
-**Application Layer** (`apps/api/src/main/java/api/application/`)
-- `@Service` classes contain use-case orchestration
-- Services call domain repository interfaces and domain services
+**Application Layer** (`modules/[bc]/application/`)
+- CQRS-style: `commands/`, `queries/`, `handlers/`, `usecases/`
+- Handlers orchestrate domain calls and publish domain events
 - Input DTOs validated here via Bean Validation (`@Valid`)
 
-**Domain Layer** (`libs/domain/src/main/java/domain/`)
-- Pure Java: `record` value objects, `final` class entities, `sealed class` errors
+**Domain Layer** (`modules/[bc]/domain/`)
+- Pure Java: `record` value objects, `final` class aggregates/entities, `sealed class` errors
 - Repository port interfaces (no Spring/JPA annotations)
-- No external dependencies — the heart of the system
+- Domain events, invariants, policies, and services
+- No external dependencies — the heart of each bounded context
 
-**Infrastructure Layer** (`libs/persistence/src/main/java/persistence/`)
-- Spring Data JPA `@Entity` classes and `JpaRepository` implementations
-- Flyway migrations in `src/main/resources/db/migration/`
-- Mappers that translate between JPA entities and domain models
+**Infrastructure Layer** (`modules/[bc]/infrastructure/`)
+- `persistence/entity/` — Spring Data JPA `@Entity` classes
+- `persistence/repository/` — `JpaRepository` implementations
+- `persistence/mapper/` — translates between JPA entities and domain models
+- `external/acl/` — Anti-Corruption Layer adapters for external APIs (where applicable)
+
+**Cross-cutting concerns** (`bootstrap/` + `shared-kernel/`)
+- `bootstrap/` — composition root: DI wiring (`di/`), web config, error handling advice, in-process event bus
+- `shared-kernel/` — smallest possible shared primitives: typed IDs, result types, `ProblemDetails`, `EventEnvelope`
+- Flyway migrations in `apps/api/src/main/resources/db/migration/`
 
 ### Project Structure
 
 ```
-apps/api/                                   ← Spring Boot entry point
+apps/api/
   src/
     main/
-      java/api/
-        ApiApplication.java                 ← @SpringBootApplication
-        presentation/
-          CandidateController.java          ← @RestController
-        application/
-          CandidateService.java             ← @Service (use cases)
-          dto/
-            CreateCandidateRequest.java     ← Input DTO (record + @Valid)
-            CandidateResponse.java          ← Output DTO (record)
+      java/com/yourco/click/
+        ApiApplication.java                         ← Spring Boot entry
+
+        bootstrap/                                  ← composition root + glue
+          di/
+            ModuleRegistry.java                     ← wires module ports to controllers
+          messaging/
+            InProcessEventBus.java                  ← in-memory pub/sub (replaceable)
+          web/
+            WebConfig.java                          ← Jackson/CORS/etc
+            ErrorHandlingAdvice.java                ← @ControllerAdvice
+            RequestContextFilter.java               ← builds ActorContext (userId, tenantId, roles)
+          persistence/
+            DbConfig.java                           ← JPA/Flyway config
+
+        shared-kernel/                              ← smallest possible shared primitives
+          api/
+            EventEnvelope.java                      ← integration event wrapper
+            ProblemDetails.java
+          domain/
+            ids/                                    ← TenantId, UserId, OrgNodeId
+            result/
+            time/
+            errors/
+
+        modules/                                    ← ALL bounded contexts live here
+          identity-access/                          ← BC 1
+            api/                                    ← ONLY thing other modules may import
+              contracts/
+              ports/
+              events/
+            domain/
+              aggregates/
+              entities/
+              valueobjects/
+              services/
+              policies/
+              events/                               ← domain events (internal)
+              invariants/
+            application/
+              commands/
+              queries/
+              handlers/
+              usecases/
+            infrastructure/
+              persistence/
+                entity/
+                repository/
+                mapper/
+              security/
+            interfaces/
+              http/                                 ← controllers specific to this BC
+                routes/                             ← optional: route grouping
+                controller/
+                dto/                                ← HTTP request/response DTOs (BC-owned)
+              messaging/                             ← event handlers/subscriptions
+
+          tenant-governance/                        ← BC 2 (same internal shape)
+            api/
+            domain/
+            application/
+            infrastructure/
+            interfaces/
+
+          organisation-structure/                   ← BC 3 (PropertyGroup + Hotel)
+            api/
+            domain/
+            application/
+            infrastructure/
+            interfaces/
+
+          channel-integration/                      ← BC 4 (generic integration lifecycle)
+            api/
+            domain/
+            application/
+            infrastructure/
+            interfaces/
+
+          meta-asset-access/                        ← BC 5 (Meta connection/assets/bindings)
+            api/
+            domain/
+            application/
+            infrastructure/
+              external/
+                acl/                                ← MetaMarketingAPIAdapter
+              persistence/
+            interfaces/
+
+          meta-ads-management/                      ← BC 6 (optional writes)
+            api/
+            domain/
+            application/
+            infrastructure/
+              external/
+                acl/                                ← mutate adapter
+              persistence/
+            interfaces/
+
+          ingestion/                                ← BC 7
+            api/
+            domain/
+            application/
+            infrastructure/
+              external/
+                acl/                                ← ProviderFetcher(s)
+              persistence/
+                rawstore/
+            interfaces/
+
+          normalisation/                            ← BC 8
+            api/
+            domain/
+            application/
+            infrastructure/
+              persistence/
+                canonicalstore/
+            interfaces/
+
+          attribution-mapping/                      ← BC 9
+            api/
+            domain/
+            application/
+            infrastructure/
+            interfaces/
+
+          reporting-portfolio/                      ← BC 10
+            api/
+            domain/
+            application/
+            infrastructure/
+              persistence/
+                readmodels/
+            interfaces/
+
       resources/
-        application.yml                     ← Spring config
+        application.yml
     test/
-      java/api/
-        presentation/
-          CandidateControllerTest.java      ← @WebMvcTest
-        application/
-          CandidateServiceTest.java         ← Mockito unit tests
+      java/com/yourco/click/
+        architecture/
+          BoundaryRulesTest.java                    ← prevents cross-module imports (seatbelt)
+        modules/...                                 ← BC testsker-compose.yml
+```
 
-libs/domain/                                ← Pure Java domain
-  src/main/java/domain/
-    model/
-      Candidate.java                        ← Domain entity (final class)
-      Education.java                        ← Value object (record)
-    repository/
-      CandidateRepository.java             ← Repository port interface
-    error/
-      DomainError.java                      ← sealed class hierarchy
+### Basic Context Map
 
-libs/persistence/                           ← JPA implementation
-  src/main/java/persistence/
-    entity/
-      CandidateEntity.java                  ← @Entity JPA class
-    repository/
-      CandidateJpaRepository.java          ← JpaRepository<CandidateEntity, UUID>
-      CandidateRepositoryImpl.java         ← implements domain CandidateRepository
-    mapper/
-      CandidateMapper.java                 ← Entity ↔ Domain model mapper
-  src/main/resources/db/migration/
-    V1__create_candidates.sql              ← Flyway migration
+```mermaid
+flowchart LR
+  IA[Identity & Access BC]
+  TG[Tenant Governance BC]
+  OS[Organisation Structure BC]
+  CI[Channel Integration BC]
+  MA[Meta Asset & Access BC]
+  MM[Meta Ads Management BC]
+  IN[Ingestion BC]
+  NO[Normalisation BC]
+  MP[Attribution & Mapping BC]
+  RP[Reporting & Portfolio BC]
 
-tools/scripts/
-  test.sh                                  ← Run tests via Docker (no local JVM required)
-docker-compose.yml
+  %% security + governance spine
+  IA --> TG
+  IA --> OS
+  IA --> CI
+  TG --> CI
+
+  %% meta setup + write guardrails
+  CI --> MA
+  MA --> MM
+  TG --> MM
+
+  %% pipeline
+  CI -- SyncRequested --> IN
+  IN -- RawSnapshotWritten --> NO
+  NO -- CanonicalBatchProduced --> MP
+  MP -- MappingBatchCreated --> RP
+
+  %% org upstream
+  OS --> MP
+  OS --> RP
+
+  %% access invalidation feedback loop
+  MA -- MetaAccessInvalidated --> CI
 ```
 
 ## Domain-Driven Design Principles
@@ -205,7 +353,7 @@ Map<String, Object> candidate = Map.of(
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/model/Candidate.java
+// modules/[bc]/domain/aggregates/Candidate.java
 public final class Candidate {
 
     private final UUID id;
@@ -238,7 +386,7 @@ public final class Candidate {
 
 **Explanation**: `Candidate` is an entity because it has a unique identifier (`UUID id`) that distinguishes it from other candidates, even when other properties are identical. The `final` class and immutable fields prevent accidental mutation. `Objects.requireNonNull()` enforces non-null contracts at construction time.
 
-**Best Practice**: Domain entities in `libs/domain` must be plain Java with no JPA or Spring annotations. They represent the business concept, not the database row.
+**Best Practice**: Domain entities in `modules/[bc]/domain/` must be plain Java with no JPA or Spring annotations. They represent the business concept, not the database row.
 
 ### Value Objects
 
@@ -256,7 +404,7 @@ Map<String, Object> education = Map.of(
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/model/Education.java
+// modules/[bc]/domain/valueobjects/Education.java
 public record Education(
     String institution,
     String title,
@@ -267,7 +415,7 @@ public record Education(
 
 **Explanation**: `Education` is a Value Object — it describes a candidate's educational background without needing its own unique identity. Java `record` provides identity-by-value (`equals`/`hashCode` based on all components), immutability, and a compact canonical constructor. Using `LocalDate` (not `String`) makes the type self-documenting and enforces correct date handling.
 
-**Recommendation**: Value objects that need to be persisted in the JPA layer use `@Embeddable` on a separate JPA class in `libs/persistence`. The domain model itself remains annotation-free.
+**Recommendation**: Value objects that need to be persisted in the JPA layer use `@Embeddable` on a separate JPA class in `modules/[bc]/infrastructure/persistence/entity/`. The domain model itself remains annotation-free.
 
 ### Aggregates
 
@@ -282,7 +430,7 @@ List<Map<String, Object>> educations = List.of(Map.of("candidateId", 1, "institu
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/model/Candidate.java
+// modules/[bc]/domain/aggregates/Candidate.java
 public final class Candidate {
 
     private final UUID id;
@@ -320,7 +468,7 @@ public Candidate getCandidateById(UUID id) {
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/repository/CandidateRepository.java
+// modules/[bc]/domain/CandidateRepository.java
 public interface CandidateRepository {
     Optional<Candidate> findById(UUID id);
     Candidate save(Candidate candidate);
@@ -328,7 +476,7 @@ public interface CandidateRepository {
     void deleteById(UUID id);
 }
 
-// libs/persistence/src/main/java/persistence/repository/CandidateRepositoryImpl.java
+// modules/[bc]/infrastructure/persistence/repository/CandidateRepositoryImpl.java
 @Repository
 public class CandidateRepositoryImpl implements CandidateRepository {
 
@@ -352,7 +500,7 @@ public class CandidateRepositoryImpl implements CandidateRepository {
 }
 ```
 
-**Explanation**: The repository interface lives in `libs/domain` (no persistence dependencies). The Spring Data JPA implementation lives in `libs/persistence`. The domain never knows about JPA.
+**Explanation**: The repository interface lives in `modules/[bc]/domain/` (no persistence dependencies). The Spring Data JPA implementation lives in `modules/[bc]/infrastructure/persistence/repository/`. The domain never knows about JPA.
 
 **Recommendation**:
 - Keep repository interfaces focused on aggregate-level operations
@@ -373,7 +521,7 @@ public static int calculateAge(LocalDate birthDate) {
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/service/CandidateDomainService.java
+// modules/[bc]/domain/services/CandidateDomainService.java
 public class CandidateDomainService {
 
     public int calculateAge(Candidate candidate) {
@@ -385,7 +533,7 @@ public class CandidateDomainService {
     }
 }
 
-// apps/api/src/main/java/api/application/CandidateService.java
+// modules/[bc]/application/usecases/CandidateService.java
 @Service
 public class CandidateService {
 
@@ -405,7 +553,7 @@ public class CandidateService {
 }
 ```
 
-**Explanation**: `CandidateDomainService` in `libs/domain` is a plain Java class containing stateless business logic. Spring's `@Service` annotation is placed on the application-layer class that orchestrates use cases, not on pure domain classes.
+**Explanation**: `CandidateDomainService` in `modules/[bc]/domain/services/` is a plain Java class containing stateless business logic. Spring's `@Service` annotation is placed on the application-layer class that orchestrates use cases, not on pure domain classes.
 
 ### Additional Recommendations
 
@@ -609,7 +757,7 @@ public interface CandidateOperations {
 
 **After:**
 ```java
-// libs/domain/src/main/java/domain/repository/CandidateRepository.java
+// modules/[bc]/domain/CandidateRepository.java
 public interface CandidateRepository {
     Optional<Candidate> findById(UUID id);
     Candidate save(Candidate candidate);
@@ -762,7 +910,7 @@ Use `record` whenever a type is:
 #### Sealed Classes — for domain error hierarchies
 
 ```java
-// libs/domain/src/main/java/domain/error/DomainError.java
+// shared-kernel/domain/errors/DomainError.java
 public sealed class DomainError extends RuntimeException
         permits DomainError.NotFound, DomainError.ValidationError, DomainError.Conflict {
 
@@ -864,15 +1012,15 @@ public class CandidateService {
 
 ### Error Handling
 
-- **Sealed class hierarchy**: Define domain errors in `libs/domain/src/main/java/domain/error/DomainError.kt`
+- **Sealed class hierarchy**: Define domain errors in `shared-kernel/domain/errors/DomainError.java`
 - **`@ControllerAdvice`**: Global exception handler maps domain errors to HTTP responses
 - **No try/catch in controllers**: Controllers stay clean; the advice handles all exceptions
 - **Pattern matching switch**: Use in `@ExceptionHandler` for exhaustive, compiler-checked error mapping
 
 ```java
-// apps/api/src/main/java/api/presentation/GlobalExceptionHandler.java
+// bootstrap/web/ErrorHandlingAdvice.java
 @ControllerAdvice
-public class GlobalExceptionHandler {
+public class ErrorHandlingAdvice {
 
     @ExceptionHandler(DomainError.class)
     public ResponseEntity<ErrorResponse> handleDomainError(DomainError error) {
@@ -913,7 +1061,7 @@ public record ErrorResponse(String code, String message, List<String> details) {
 - **Custom validators**: Implement `ConstraintValidator` for domain-specific rules
 
 ```java
-// apps/api/src/main/java/api/application/dto/CreateCandidateRequest.java
+// modules/[bc]/interfaces/http/dto/CreateCandidateRequest.java
 public record CreateCandidateRequest(
     @NotBlank(message = "First name must not be blank")
     @Size(max = 100)
@@ -1062,7 +1210,7 @@ public ResponseEntity<ApiResponse<CandidateResponse>> getById(@PathVariable UUID
 - **Credentials**: Configure credentials handling appropriately
 
 ```java
-// apps/api/src/main/java/api/ApiApplication.java or a @Configuration class
+// bootstrap/web/WebConfig.java
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -1090,13 +1238,13 @@ app:
 
 ### JPA Entity Design
 
-- **Separate from domain model**: JPA `@Entity` classes live in `libs/persistence`, not in `libs/domain`
+- **Separate from domain model**: JPA `@Entity` classes live in `modules/[bc]/infrastructure/persistence/entity/`, not in `modules/[bc]/domain/`
 - **Naming**: Suffix JPA classes with `Entity` (e.g., `CandidateEntity`)
 - **UUID primary keys**: Use `UUID` as the primary key type
 - **Mappers**: Always translate between entity and domain via a dedicated `Mapper` class
 
 ```java
-// libs/persistence/src/main/java/persistence/entity/CandidateEntity.java
+// modules/[bc]/infrastructure/persistence/entity/CandidateEntity.java
 @Entity
 @Table(name = "candidates")
 public class CandidateEntity {
@@ -1129,12 +1277,12 @@ public class CandidateEntity {
     // Getters omitted for brevity
 }
 
-// libs/persistence/src/main/java/persistence/repository/CandidateJpaRepository.java
+// modules/[bc]/infrastructure/persistence/repository/CandidateJpaRepository.java
 public interface CandidateJpaRepository extends JpaRepository<CandidateEntity, UUID> {
     Optional<CandidateEntity> findByEmail(String email);
 }
 
-// libs/persistence/src/main/java/persistence/mapper/CandidateMapper.java
+// modules/[bc]/infrastructure/persistence/mapper/CandidateMapper.java
 @Component
 public class CandidateMapper {
 
@@ -1163,7 +1311,7 @@ public class CandidateMapper {
 - **Version Control**: All database changes are version-controlled via Flyway SQL migrations
 - **Naming**: Use `V{version}__{description}.sql` convention (e.g., `V1__create_candidates.sql`)
 - **Immutable**: Never modify an existing applied migration; always add a new one
-- **Location**: `libs/persistence/src/main/resources/db/migration/`
+- **Location**: `apps/api/src/main/resources/db/migration/`
 
 ```sql
 -- V1__create_candidates.sql
@@ -1179,12 +1327,12 @@ CREATE TABLE candidates (
 
 ### Repository Pattern
 
-- **Domain interface in `libs/domain`**: No persistence framework annotations
-- **JPA implementation in `libs/persistence`**: Implements the domain interface
+- **Domain interface in `modules/[bc]/domain/`**: No persistence framework annotations
+- **JPA implementation in `modules/[bc]/infrastructure/persistence/repository/`**: Implements the domain interface
 - **Mapper translates**: Between JPA entity and domain model
 
 ```java
-// libs/domain/src/main/java/domain/repository/CandidateRepository.java
+// modules/[bc]/domain/CandidateRepository.java
 public interface CandidateRepository {
     Optional<Candidate> findById(UUID id);
     Optional<Candidate> findByEmail(String email);
@@ -1193,7 +1341,7 @@ public interface CandidateRepository {
     void deleteById(UUID id);
 }
 
-// libs/persistence/src/main/java/persistence/repository/CandidateRepositoryImpl.java
+// modules/[bc]/infrastructure/persistence/repository/CandidateRepositoryImpl.java
 @Repository
 public class CandidateRepositoryImpl implements CandidateRepository {
 
