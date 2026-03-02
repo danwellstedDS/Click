@@ -6,5 +6,4 @@ import java.util.UUID;
 
 public interface PropertyGroupQueryPort {
   Optional<PropertyGroupInfo> findInfoById(UUID id);
-  Optional<PropertyGroupInfo> findInfoByPrimaryOrgId(UUID primaryOrgId);
 }

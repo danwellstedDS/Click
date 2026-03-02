@@ -1,7 +1,7 @@
 package com.derbysoft.click.modules.identityaccess.infrastructure.security;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.derbysoft.click.modules.identityaccess.domain.valueobjects.AuthClaims;
+import com.derbysoft.click.modules.identityaccess.domain.valueobjects.ActorContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -30,7 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     String token = extractCookie(request, "auth_token");
     if (token != null) {
       try {
-        AuthClaims claims = jwtService.verifyAndExtract(token);
+        ActorContext claims = jwtService.verifyAndExtract(token);
         UserPrincipal principal = new UserPrincipal(
             claims.userId(),
             claims.tenantId(),

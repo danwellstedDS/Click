@@ -37,9 +37,4 @@ public class PropertyGroupRepositoryImpl implements PropertyGroupRepository, Pro
         .map(e -> new PropertyGroupInfo(e.getId(), e.getName(), e.getPrimaryOrgId()));
   }
 
-  @Override
-  public Optional<PropertyGroupInfo> findInfoByPrimaryOrgId(UUID primaryOrgId) {
-    return propertyGroupJpaRepository.findByPrimaryOrgId(primaryOrgId)
-        .map(e -> new PropertyGroupInfo(e.getId(), e.getName(), e.getPrimaryOrgId()));
-  }
 }

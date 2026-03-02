@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
 import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.organisationstructure.domain.PropertyRepository;
@@ -29,6 +30,9 @@ class PropertyManagementHandlerTest {
   @Mock
   private PropertyRepository propertyRepository;
 
+  @Mock
+  private InProcessEventBus eventBus;
+
   @InjectMocks
   private PropertyManagementHandler propertyManagementHandler;
 
@@ -44,11 +48,11 @@ class PropertyManagementHandlerTest {
   }
 
   private static Property activeProperty(UUID id) {
-    return Property.create(id, TENANT_ID, "Test Property", true, null, Instant.now(), Instant.now());
+    return Property.reconstitute(id, TENANT_ID, "Test Property", true, null, Instant.now(), Instant.now());
   }
 
   private static Property inactiveProperty(UUID id) {
-    return Property.create(id, TENANT_ID, "Inactive Property", false, null, Instant.now(), Instant.now());
+    return Property.reconstitute(id, TENANT_ID, "Inactive Property", false, null, Instant.now(), Instant.now());
   }
 
   @Test
@@ -74,7 +78,7 @@ class PropertyManagementHandlerTest {
 
   @Test
   void createProperty_createsAndReturnsDto() {
-    Property created = Property.create(PROPERTY_ID, TENANT_ID, "New Property", true, "ref-123", Instant.now(), Instant.now());
+    Property created = Property.reconstitute(PROPERTY_ID, TENANT_ID, "New Property", true, "ref-123", Instant.now(), Instant.now());
     when(propertyRepository.create(eq(TENANT_ID), eq("New Property"), eq(true), eq("ref-123")))
         .thenReturn(created);
 
@@ -87,6 +91,7 @@ class PropertyManagementHandlerTest {
     assertThat(result.name()).isEqualTo("New Property");
     assertThat(result.isActive()).isTrue();
     assertThat(result.externalPropertyRef()).isEqualTo("ref-123");
+    verify(eventBus).publish(any());
   }
 
   @Test

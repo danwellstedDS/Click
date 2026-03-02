@@ -11,8 +11,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "org_memberships")
-public class OrgMembershipEntity {
+@Table(name = "tenant_memberships")
+public class TenantMembershipEntity {
   @Id
   @GeneratedValue
   @UuidGenerator
@@ -21,27 +21,28 @@ public class OrgMembershipEntity {
   @Column(name = "user_id", nullable = false)
   private UUID userId;
 
-  @Column(name = "organization_id", nullable = false)
-  private UUID organizationId;
+  @Column(name = "tenant_id", nullable = false)
+  private UUID tenantId;
 
-  @Column(name = "is_org_admin", nullable = false)
-  private boolean isOrgAdmin = false;
+  @Column(name = "role", nullable = false)
+  private String role;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
-  protected OrgMembershipEntity() {}
+  protected TenantMembershipEntity() {}
 
-  public OrgMembershipEntity(UUID userId, UUID organizationId, boolean isOrgAdmin) {
+  public TenantMembershipEntity(UUID id, UUID userId, UUID tenantId, String role) {
+    this.id = id;
     this.userId = userId;
-    this.organizationId = organizationId;
-    this.isOrgAdmin = isOrgAdmin;
+    this.tenantId = tenantId;
+    this.role = role;
   }
 
   public UUID getId() { return id; }
   public UUID getUserId() { return userId; }
-  public UUID getOrganizationId() { return organizationId; }
-  public boolean isOrgAdmin() { return isOrgAdmin; }
+  public UUID getTenantId() { return tenantId; }
+  public String getRole() { return role; }
   public Instant getCreatedAt() { return createdAt; }
 }

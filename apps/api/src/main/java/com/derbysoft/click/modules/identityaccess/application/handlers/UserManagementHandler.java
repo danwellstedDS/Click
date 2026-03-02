@@ -1,9 +1,10 @@
 package com.derbysoft.click.modules.identityaccess.application.handlers;
 
-import com.derbysoft.click.modules.identityaccess.domain.OrgMembershipRepository;
+import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
+import com.derbysoft.click.modules.identityaccess.domain.TenantMembershipRepository;
 import com.derbysoft.click.modules.identityaccess.domain.UserRepository;
-import com.derbysoft.click.modules.identityaccess.domain.entities.OrgMembership;
 import com.derbysoft.click.modules.identityaccess.domain.aggregates.User;
+import com.derbysoft.click.modules.identityaccess.domain.entities.TenantMembership;
 import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUserRequest;
@@ -11,8 +12,7 @@ import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUser
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserDetailResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserDetailResponse.MembershipInfo;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserListItemResponse;
-import com.derbysoft.click.modules.organisationstructure.api.contracts.PropertyGroupInfo;
-import com.derbysoft.click.modules.organisationstructure.api.ports.PropertyGroupQueryPort;
+import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.util.List;
 import java.util.UUID;
@@ -24,32 +24,30 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserManagementHandler {
 
   private final UserRepository userRepository;
-  private final OrgMembershipRepository orgMembershipRepository;
-  private final PropertyGroupQueryPort propertyGroupQueryPort;
+  private final TenantMembershipRepository tenantMembershipRepository;
   private final PasswordEncoder passwordEncoder;
+  private final InProcessEventBus eventBus;
 
   public UserManagementHandler(
       UserRepository userRepository,
-      OrgMembershipRepository orgMembershipRepository,
-      PropertyGroupQueryPort propertyGroupQueryPort,
-      PasswordEncoder passwordEncoder
+      TenantMembershipRepository tenantMembershipRepository,
+      PasswordEncoder passwordEncoder,
+      InProcessEventBus eventBus
   ) {
     this.userRepository = userRepository;
-    this.orgMembershipRepository = orgMembershipRepository;
-    this.propertyGroupQueryPort = propertyGroupQueryPort;
+    this.tenantMembershipRepository = tenantMembershipRepository;
     this.passwordEncoder = passwordEncoder;
+    this.eventBus = eventBus;
   }
 
   public List<UserListItemResponse> listUsers(UserPrincipal principal) {
     requireAdmin(principal);
-    UUID orgId = resolveOrgId(principal.tenantId());
 
-    return orgMembershipRepository.findByOrganizationId(orgId).stream()
+    return tenantMembershipRepository.findByTenantId(principal.tenantId()).stream()
         .map(m -> {
           User user = userRepository.findById(m.userId())
               .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
-          String role = m.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
-          return new UserListItemResponse(user.getId(), user.getEmail(), role, user.getCreatedAt());
+          return new UserListItemResponse(user.getId(), user.getEmail(), m.role().name(), user.getCreatedAt());
         })
         .toList();
   }
@@ -69,19 +67,21 @@ public class UserManagementHandler {
       throw new DomainError.Conflict("USR_001", "A user with this email already exists");
     });
 
-    UUID orgId = resolveOrgId(principal.tenantId());
-
     String tempPassword = UUID.randomUUID().toString();
     String hashedPassword = passwordEncoder.encode(tempPassword);
 
     User user = userRepository.create(request.email(), hashedPassword);
-    OrgMembership membership = orgMembershipRepository.create(
-        user.getId(), orgId, request.role() == Role.ADMIN
-    );
+    UUID membershipId = UUID.randomUUID();
+    TenantMembership membership = user.addMembership(membershipId, principal.tenantId(), request.role());
+    tenantMembershipRepository.create(membershipId, user.getId(), principal.tenantId(), request.role());
 
-    String role = membership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
+    user.getEvents().forEach(event ->
+        eventBus.publish(EventEnvelope.of(event.getClass().getSimpleName(), event))
+    );
+    user.clearEvents();
+
     UserListItemResponse userItem = new UserListItemResponse(
-        user.getId(), user.getEmail(), role, user.getCreatedAt()
+        user.getId(), user.getEmail(), membership.role().name(), user.getCreatedAt()
     );
 
     return new CreateUserResponse(userItem, tempPassword);
@@ -93,27 +93,18 @@ public class UserManagementHandler {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    UUID orgId = resolveOrgId(principal.tenantId());
-
-    OrgMembership orgMembership = orgMembershipRepository.findByUserAndOrganization(userId, orgId)
+    TenantMembership tenantMembership = tenantMembershipRepository
+        .findByUserAndTenant(userId, principal.tenantId())
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    String roleInPropertyGroup = orgMembership.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
-
-    List<MembershipInfo> membershipInfos = orgMembershipRepository.findByUserId(userId).stream()
-        .map(m -> {
-          String propertyGroupIdStr = propertyGroupQueryPort.findInfoByPrimaryOrgId(m.organizationId())
-              .map(pg -> pg.id().toString())
-              .orElse(m.organizationId().toString());
-          String role = m.isOrgAdmin() ? Role.ADMIN.name() : Role.VIEWER.name();
-          return new MembershipInfo(propertyGroupIdStr, role, m.createdAt());
-        })
+    List<MembershipInfo> membershipInfos = tenantMembershipRepository.findByUserId(userId).stream()
+        .map(m -> new MembershipInfo(m.tenantId().toString(), m.role().name(), m.createdAt()))
         .toList();
 
     return new UserDetailResponse(
         user.getId(),
         user.getEmail(),
-        roleInPropertyGroup,
+        tenantMembership.role().name(),
         user.getCreatedAt(),
         user.getUpdatedAt(),
         membershipInfos
@@ -131,17 +122,10 @@ public class UserManagementHandler {
     userRepository.findById(userId)
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
-    UUID orgId = resolveOrgId(principal.tenantId());
-    orgMembershipRepository.findByUserAndOrganization(userId, orgId)
+    tenantMembershipRepository.findByUserAndTenant(userId, principal.tenantId())
         .orElseThrow(() -> new DomainError.NotFound("USR_002", "User not found"));
 
     userRepository.deleteById(userId);
-  }
-
-  private UUID resolveOrgId(UUID propertyGroupId) {
-    return propertyGroupQueryPort.findInfoById(propertyGroupId)
-        .map(PropertyGroupInfo::primaryOrgId)
-        .orElseThrow(() -> new DomainError.NotFound("PGR_001", "PropertyGroup not found"));
   }
 
   private static void requireAdmin(UserPrincipal principal) {
