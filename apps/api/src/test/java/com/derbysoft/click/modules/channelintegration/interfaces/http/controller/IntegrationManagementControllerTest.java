@@ -1,12 +1,10 @@
 package com.derbysoft.click.modules.channelintegration.interfaces.http.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,21 +39,23 @@ class IntegrationManagementControllerTest {
 
     private static final UUID TENANT_ID = UUID.randomUUID();
     private static final UUID INTEGRATION_ID = UUID.randomUUID();
+    private static final UUID ACTOR_ID = UUID.randomUUID();
 
     private static IntegrationInstance sampleInstance() {
         IntegrationInstance instance = IntegrationInstance.create(
             TENANT_ID,
             Channel.GOOGLE_ADS,
-            new SyncSchedule("0 * * * *", "UTC")
+            "default",
+            SyncSchedule.cron("0 * * * *", "UTC")
         );
-        instance.attachCredential(new CredentialRef(UUID.randomUUID()));
+        instance.attachCredential(new CredentialRef(UUID.randomUUID()), ACTOR_ID);
         instance.clearEvents();
         return instance;
     }
 
     @Test
     void createIntegration_returns201() throws Exception {
-        when(integrationService.createIntegrationInstance(any(), any(), any()))
+        when(integrationService.createIntegrationInstance(any(), any(), any(), any()))
             .thenReturn(sampleInstance());
 
         mockMvc.perform(post("/api/v1/integrations")
@@ -64,7 +64,8 @@ class IntegrationManagementControllerTest {
                     {
                         "tenantId": "%s",
                         "channel": "GOOGLE_ADS",
-                        "cron": "0 * * * *",
+                        "cadenceType": "CRON",
+                        "cronExpression": "0 * * * *",
                         "timezone": "UTC"
                     }
                     """.formatted(TENANT_ID)))
@@ -72,6 +73,31 @@ class IntegrationManagementControllerTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.channel").value("GOOGLE_ADS"))
             .andExpect(jsonPath("$.data.status").value("Active"));
+    }
+
+    @Test
+    void createIntegration_withIntervalCadence_returns201() throws Exception {
+        IntegrationInstance instance = IntegrationInstance.create(
+            TENANT_ID, Channel.META_ADS, "default", SyncSchedule.interval(30, "UTC")
+        );
+        when(integrationService.createIntegrationInstance(any(), any(), any(), any()))
+            .thenReturn(instance);
+
+        mockMvc.perform(post("/api/v1/integrations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "tenantId": "%s",
+                        "channel": "META_ADS",
+                        "cadenceType": "INTERVAL",
+                        "intervalMinutes": 30,
+                        "timezone": "UTC"
+                    }
+                    """.formatted(TENANT_ID)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.cadenceType").value("INTERVAL"))
+            .andExpect(jsonPath("$.data.intervalMinutes").value(30));
     }
 
     @Test
@@ -86,7 +112,7 @@ class IntegrationManagementControllerTest {
 
     @Test
     void createIntegration_returns403WhenGovernanceDenies() throws Exception {
-        when(integrationService.createIntegrationInstance(any(), any(), any()))
+        when(integrationService.createIntegrationInstance(any(), any(), any(), any()))
             .thenThrow(new DomainError.Forbidden("GOV_403", "Integration creation not permitted"));
 
         mockMvc.perform(post("/api/v1/integrations")
@@ -95,7 +121,8 @@ class IntegrationManagementControllerTest {
                     {
                         "tenantId": "%s",
                         "channel": "GOOGLE_ADS",
-                        "cron": "0 * * * *",
+                        "cadenceType": "CRON",
+                        "cronExpression": "0 * * * *",
                         "timezone": "UTC"
                     }
                     """.formatted(TENANT_ID)))

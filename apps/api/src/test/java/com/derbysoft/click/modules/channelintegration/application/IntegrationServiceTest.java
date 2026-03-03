@@ -13,6 +13,7 @@ import com.derbysoft.click.modules.channelintegration.application.handlers.Integ
 import com.derbysoft.click.modules.channelintegration.domain.IntegrationInstanceRepository;
 import com.derbysoft.click.modules.channelintegration.domain.aggregates.IntegrationInstance;
 import com.derbysoft.click.modules.channelintegration.domain.valueobjects.Channel;
+import com.derbysoft.click.modules.channelintegration.domain.valueobjects.CredentialRef;
 import com.derbysoft.click.modules.channelintegration.domain.valueobjects.SyncSchedule;
 import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
@@ -40,13 +41,14 @@ class IntegrationServiceTest {
     private IntegrationService integrationService;
 
     private static final UUID TENANT_ID = UUID.randomUUID();
-    private static final SyncSchedule SCHEDULE = new SyncSchedule("0 * * * *", "UTC");
+    private static final UUID ACTOR_ID = UUID.randomUUID();
+    private static final SyncSchedule SCHEDULE = SyncSchedule.cron("0 * * * *", "UTC");
 
     @Test
     void shouldCallGovernancePortOnCreate() {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, SCHEDULE);
+        integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, "default", SCHEDULE);
 
         verify(tenantGovernancePort, times(1)).assertCanCreateIntegration(TENANT_ID);
     }
@@ -57,7 +59,7 @@ class IntegrationServiceTest {
             .when(tenantGovernancePort).assertCanCreateIntegration(any());
 
         assertThatThrownBy(() ->
-            integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, SCHEDULE)
+            integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, "default", SCHEDULE)
         ).isInstanceOf(DomainError.Forbidden.class)
             .hasMessageContaining("not permitted");
     }
@@ -66,7 +68,7 @@ class IntegrationServiceTest {
     void shouldPublishEventsAfterCreate() {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, SCHEDULE);
+        integrationService.createIntegrationInstance(TENANT_ID, Channel.GOOGLE_ADS, "default", SCHEDULE);
 
         verify(eventBus, times(1)).publish(any());
     }
@@ -83,8 +85,8 @@ class IntegrationServiceTest {
 
     @Test
     void shouldSaveAndPublishOnPause() {
-        IntegrationInstance instance = IntegrationInstance.create(TENANT_ID, Channel.GOOGLE_ADS, SCHEDULE);
-        instance.attachCredential(new com.derbysoft.click.modules.channelintegration.domain.valueobjects.CredentialRef(UUID.randomUUID()));
+        IntegrationInstance instance = IntegrationInstance.create(TENANT_ID, Channel.GOOGLE_ADS, "default", SCHEDULE);
+        instance.attachCredential(new CredentialRef(UUID.randomUUID()), ACTOR_ID);
         instance.clearEvents();
 
         when(repository.findById(instance.getId())).thenReturn(Optional.of(instance));

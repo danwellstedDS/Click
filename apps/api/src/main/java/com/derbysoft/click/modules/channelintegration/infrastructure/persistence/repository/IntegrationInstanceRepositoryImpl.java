@@ -4,8 +4,8 @@ import com.derbysoft.click.modules.channelintegration.api.contracts.IntegrationI
 import com.derbysoft.click.modules.channelintegration.api.ports.IntegrationQueryPort;
 import com.derbysoft.click.modules.channelintegration.domain.IntegrationInstanceRepository;
 import com.derbysoft.click.modules.channelintegration.domain.aggregates.IntegrationInstance;
+import com.derbysoft.click.modules.channelintegration.domain.valueobjects.CadenceType;
 import com.derbysoft.click.modules.channelintegration.domain.valueobjects.Channel;
-import com.derbysoft.click.modules.channelintegration.domain.valueobjects.IntegrationStatus;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.entity.IntegrationInstanceEntity;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.mapper.IntegrationInstanceMapper;
 import java.util.List;
@@ -32,8 +32,12 @@ public class IntegrationInstanceRepositoryImpl
     }
 
     @Override
-    public Optional<IntegrationInstance> findByTenantIdAndChannel(UUID tenantId, Channel channel) {
-        return jpaRepository.findByTenantIdAndChannel(tenantId, channel.name()).map(mapper::toDomain);
+    public Optional<IntegrationInstance> findByTenantIdAndChannelAndConnectionKey(
+        UUID tenantId, Channel channel, String connectionKey
+    ) {
+        return jpaRepository.findByTenantIdAndChannelAndConnectionKey(
+            tenantId, channel.name(), connectionKey
+        ).map(mapper::toDomain);
     }
 
     @Override
@@ -44,8 +48,9 @@ public class IntegrationInstanceRepositoryImpl
     }
 
     @Override
-    public List<IntegrationInstance> findAllByStatus(IntegrationStatus status) {
-        return jpaRepository.findAllByStatus(status.name()).stream()
+    public List<IntegrationInstance> findAllSchedulable() {
+        return jpaRepository.findAllByStatusAndCadenceTypeNot("Active", CadenceType.MANUAL.name())
+            .stream()
             .map(mapper::toDomain)
             .toList();
     }
@@ -77,7 +82,7 @@ public class IntegrationInstanceRepositoryImpl
 
     @Override
     public boolean isActive(UUID tenantId, Channel channel) {
-        return jpaRepository.findByTenantIdAndChannel(tenantId, channel.name())
+        return jpaRepository.findByTenantIdAndChannelAndConnectionKey(tenantId, channel.name(), "default")
             .map(e -> "Active".equals(e.getStatus()))
             .orElse(false);
     }

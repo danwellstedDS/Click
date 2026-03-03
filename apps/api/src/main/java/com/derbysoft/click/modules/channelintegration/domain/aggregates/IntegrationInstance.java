@@ -27,10 +27,13 @@ public final class IntegrationInstance {
     private final UUID id;
     private final UUID tenantId;
     private final Channel channel;
+    private final String connectionKey;
     private IntegrationStatus status;
     private CredentialRef credentialRef;
     private SyncSchedule syncSchedule;
     private IntegrationHealth health;
+    private Instant credentialAttachedAt;
+    private UUID updatedBy;
     private final Instant createdAt;
     private Instant updatedAt;
     private final List<Object> events = new ArrayList<>();
@@ -39,23 +42,30 @@ public final class IntegrationInstance {
         UUID id,
         UUID tenantId,
         Channel channel,
+        String connectionKey,
         IntegrationStatus status,
         CredentialRef credentialRef,
         SyncSchedule syncSchedule,
         IntegrationHealth health,
+        Instant credentialAttachedAt,
+        UUID updatedBy,
         Instant createdAt,
         Instant updatedAt
     ) {
         Objects.requireNonNull(id, "id must not be null");
         Objects.requireNonNull(tenantId, "tenantId must not be null");
         Objects.requireNonNull(channel, "channel must not be null");
+        Objects.requireNonNull(connectionKey, "connectionKey must not be null");
         this.id = id;
         this.tenantId = tenantId;
         this.channel = channel;
+        this.connectionKey = connectionKey;
         this.status = status;
         this.credentialRef = credentialRef;
         this.syncSchedule = syncSchedule;
         this.health = health;
+        this.credentialAttachedAt = credentialAttachedAt;
+        this.updatedBy = updatedBy;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -67,31 +77,41 @@ public final class IntegrationInstance {
         UUID id,
         UUID tenantId,
         Channel channel,
+        String connectionKey,
         IntegrationStatus status,
         CredentialRef credentialRef,
         SyncSchedule syncSchedule,
         IntegrationHealth health,
+        Instant credentialAttachedAt,
+        UUID updatedBy,
         Instant createdAt,
         Instant updatedAt
     ) {
-        return new IntegrationInstance(id, tenantId, channel, status, credentialRef,
-            syncSchedule, health, createdAt, updatedAt);
+        return new IntegrationInstance(id, tenantId, channel, connectionKey, status, credentialRef,
+            syncSchedule, health, credentialAttachedAt, updatedBy, createdAt, updatedAt);
     }
 
     /**
      * Factory method — creates a new integration instance in SetupRequired state.
      */
-    public static IntegrationInstance create(UUID tenantId, Channel channel, SyncSchedule syncSchedule) {
+    public static IntegrationInstance create(
+        UUID tenantId,
+        Channel channel,
+        String connectionKey,
+        SyncSchedule syncSchedule
+    ) {
         Objects.requireNonNull(tenantId, "tenantId must not be null");
         Objects.requireNonNull(channel, "channel must not be null");
+        Objects.requireNonNull(connectionKey, "connectionKey must not be null");
         Objects.requireNonNull(syncSchedule, "syncSchedule must not be null");
 
         UUID id = UUID.randomUUID();
         Instant now = Instant.now();
         IntegrationInstance instance = new IntegrationInstance(
-            id, tenantId, channel,
+            id, tenantId, channel, connectionKey,
             IntegrationStatus.SETUP_REQUIRED,
-            null, syncSchedule, null,
+            null, syncSchedule, IntegrationHealth.empty(),
+            null, null,
             now, now
         );
         instance.events.add(new IntegrationCreated(id, tenantId, channel, now));
@@ -102,7 +122,7 @@ public final class IntegrationInstance {
      * Attaches a credential reference. Transitions SetupRequired → Active or Broken → Active.
      * Emits CredentialAttached and optionally IntegrationRecovered.
      */
-    public void attachCredential(CredentialRef ref) {
+    public void attachCredential(CredentialRef ref, UUID actorId) {
         Objects.requireNonNull(ref, "credentialRef must not be null");
         if (status instanceof IntegrationStatus.Active) {
             throw new DomainError.Conflict("INT_001",
@@ -111,6 +131,8 @@ public final class IntegrationInstance {
         boolean wasBreaking = status instanceof IntegrationStatus.Broken;
         this.credentialRef = ref;
         this.status = IntegrationStatus.ACTIVE;
+        this.credentialAttachedAt = Instant.now();
+        this.updatedBy = actorId;
         this.updatedAt = Instant.now();
         events.add(new CredentialAttached(id, ref, updatedAt));
         if (wasBreaking) {
@@ -183,7 +205,7 @@ public final class IntegrationInstance {
     public void markBroken(String reason) {
         requireStatus(IntegrationStatus.Active.class, "markBroken");
         this.status = IntegrationStatus.BROKEN;
-        this.health = new IntegrationHealth(Instant.now(), reason);
+        this.health = health.withFailure(Instant.now(), null, reason);
         this.updatedAt = Instant.now();
         events.add(new IntegrationMarkedBroken(id, reason, updatedAt));
     }
@@ -192,7 +214,7 @@ public final class IntegrationInstance {
      * Updates health after a successful sync (no status change, no event emitted).
      */
     public void recordSyncSuccess() {
-        this.health = new IntegrationHealth(Instant.now(), null);
+        this.health = health.withSuccess(Instant.now());
         this.updatedAt = Instant.now();
     }
 
@@ -215,10 +237,13 @@ public final class IntegrationInstance {
     public UUID getId() { return id; }
     public UUID getTenantId() { return tenantId; }
     public Channel getChannel() { return channel; }
+    public String getConnectionKey() { return connectionKey; }
     public IntegrationStatus getStatus() { return status; }
     public CredentialRef getCredentialRef() { return credentialRef; }
     public SyncSchedule getSyncSchedule() { return syncSchedule; }
     public IntegrationHealth getHealth() { return health; }
+    public Instant getCredentialAttachedAt() { return credentialAttachedAt; }
+    public UUID getUpdatedBy() { return updatedBy; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }
