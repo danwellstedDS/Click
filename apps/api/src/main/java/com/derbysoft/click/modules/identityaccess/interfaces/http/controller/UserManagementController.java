@@ -4,6 +4,7 @@ import com.derbysoft.click.bootstrap.web.RequestContextFilter;
 import com.derbysoft.click.modules.identityaccess.application.handlers.UserManagementHandler;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUserRequest;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.CreateUserResponse;
+import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UpdateUserRoleRequest;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserDetailResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserListItemResponse;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -58,6 +60,16 @@ public class UserManagementController {
       HttpServletRequest request
   ) {
     return ApiResponse.success(userManagementHandler.getUser(id, principal), requestId(request));
+  }
+
+  @PatchMapping("/{id}")
+  public ApiResponse<UserListItemResponse> updateUserRole(
+      @PathVariable UUID id,
+      @RequestBody UpdateUserRoleRequest body,
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest request
+  ) {
+    return ApiResponse.success(userManagementHandler.updateUserRole(id, body, principal), requestId(request));
   }
 
   @DeleteMapping("/{id}")

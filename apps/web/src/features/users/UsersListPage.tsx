@@ -176,8 +176,11 @@ export function UsersListPage() {
             <Select
               placeholder="Select role"
               options={[
-                { value: "ADMIN", label: "Admin" },
                 { value: "VIEWER", label: "Viewer" },
+                { value: "ANALYST", label: "Analyst" },
+                { value: "MANAGER", label: "Manager" },
+                { value: "ADMIN", label: "Admin" },
+                { value: "SUPPORT", label: "Support" },
               ]}
             />
           </Form.Item>

@@ -3,6 +3,8 @@ package com.derbysoft.click.bootstrap.web;
 import com.derbysoft.click.sharedkernel.api.ApiResponse;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ErrorHandlingAdvice {
+
+  private static final Logger log = LoggerFactory.getLogger(ErrorHandlingAdvice.class);
 
   @ExceptionHandler(DomainError.class)
   public ResponseEntity<ApiResponse<Object>> handleDomainError(
@@ -30,6 +34,7 @@ public class ErrorHandlingAdvice {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Object>> handleUnexpected(
       Exception error, HttpServletRequest request) {
+    log.error("Unexpected error on {} {}", request.getMethod(), request.getRequestURI(), error);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.error("SYS_001", "Unexpected error", requestId(request)));
   }

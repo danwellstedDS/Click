@@ -3,7 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   Breadcrumb,
   Button,
+  Form,
   Modal,
+  Select,
   Spinner,
   Table,
   Tag,
@@ -12,7 +14,15 @@ import {
 } from "@derbysoft/neat-design";
 import { AppLayout } from "../../components/AppLayout";
 import * as usersApi from "./usersApi";
-import type { UserDetail } from "./types";
+import type { UserDetail, UserRole } from "./types";
+
+const ROLE_OPTIONS = [
+  { value: "VIEWER", label: "Viewer" },
+  { value: "ANALYST", label: "Analyst" },
+  { value: "MANAGER", label: "Manager" },
+  { value: "ADMIN", label: "Admin" },
+  { value: "SUPPORT", label: "Support" },
+];
 
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +33,10 @@ export function UserDetailPage() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [editModal, setEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm] = Form.useForm();
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -32,6 +46,22 @@ export function UserDetailPage() {
       .catch(() => toast.error("Failed to load user"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function handleEditRole(values: { role: UserRole }) {
+    if (!id) return;
+    setEditLoading(true);
+    try {
+      const updated = await usersApi.updateUserRole(id, { role: values.role });
+      setUser((prev) => prev ? { ...prev, role: updated.role } : prev);
+      setEditModal(false);
+      editForm.resetFields();
+      toast.success("Role updated");
+    } catch {
+      toast.error("Failed to update role");
+    } finally {
+      setEditLoading(false);
+    }
+  }
 
   async function handleDelete() {
     if (!id) return;
@@ -164,10 +194,55 @@ export function UserDetailPage() {
         <Button variant="secondary" onClick={() => navigate("/users")}>
           ← Back to Users
         </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            editForm.setFieldsValue({ role: user.role });
+            setEditModal(true);
+          }}
+        >
+          Edit Role
+        </Button>
         <Button variant="secondary" onClick={() => setDeleteModal(true)}>
           Delete User
         </Button>
       </div>
+
+      {/* Edit Role Modal */}
+      <Modal
+        title="Edit Role"
+        open={editModal}
+        onCancel={() => {
+          setEditModal(false);
+          editForm.resetFields();
+        }}
+        footer={null}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleEditRole}>
+          <Form.Item
+            name="role"
+            label="Role"
+            rules={[{ required: true, message: "Role is required" }]}
+          >
+            <Select placeholder="Select role" options={ROLE_OPTIONS} />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setEditModal(false);
+                editForm.resetFields();
+              }}
+              style={{ marginRight: 8 }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" htmlType="submit" loading={editLoading}>
+              {editLoading ? "Saving…" : "Save"}
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal
