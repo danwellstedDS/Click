@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface IntegrationInstanceJpaRepository extends JpaRepository<IntegrationInstanceEntity, UUID> {
-    Optional<IntegrationInstanceEntity> findByTenantIdAndChannel(UUID tenantId, String channel);
+    Optional<IntegrationInstanceEntity> findByTenantIdAndChannelAndConnectionKey(UUID tenantId, String channel, String connectionKey);
     List<IntegrationInstanceEntity> findAllByTenantId(UUID tenantId);
-    List<IntegrationInstanceEntity> findAllByStatus(String status);
+    List<IntegrationInstanceEntity> findAllByStatusAndCadenceTypeNot(String status, String cadenceType);
 }

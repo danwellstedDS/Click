@@ -32,18 +32,20 @@ public class IntegrationService {
     }
 
     @Transactional
-    public IntegrationInstance createIntegrationInstance(UUID tenantId, Channel channel, SyncSchedule schedule) {
+    public IntegrationInstance createIntegrationInstance(
+        UUID tenantId, Channel channel, String connectionKey, SyncSchedule schedule
+    ) {
         tenantGovernancePort.assertCanCreateIntegration(tenantId);
-        IntegrationInstance instance = IntegrationInstance.create(tenantId, channel, schedule);
+        IntegrationInstance instance = IntegrationInstance.create(tenantId, channel, connectionKey, schedule);
         IntegrationInstance saved = repository.save(instance);
         publishAndClear(saved);
         return saved;
     }
 
     @Transactional
-    public IntegrationInstance attachCredential(UUID id, CredentialRef credentialRef) {
+    public IntegrationInstance attachCredential(UUID id, CredentialRef credentialRef, UUID actorId) {
         IntegrationInstance instance = requireById(id);
-        instance.attachCredential(credentialRef);
+        instance.attachCredential(credentialRef, actorId);
         IntegrationInstance saved = repository.save(instance);
         publishAndClear(saved);
         return saved;
