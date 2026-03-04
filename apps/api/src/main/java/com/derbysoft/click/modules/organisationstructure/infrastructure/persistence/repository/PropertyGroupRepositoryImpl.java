@@ -6,6 +6,7 @@ import com.derbysoft.click.modules.organisationstructure.domain.PropertyGroupRep
 import com.derbysoft.click.modules.organisationstructure.domain.aggregates.PropertyGroup;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.entity.PropertyGroupEntity;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.mapper.PropertyGroupMapper;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 public class PropertyGroupRepositoryImpl implements PropertyGroupRepository, PropertyGroupQueryPort {
@@ -28,6 +29,17 @@ public class PropertyGroupRepositoryImpl implements PropertyGroupRepository, Pro
   @Override
   public PropertyGroup create(String name) {
     PropertyGroupEntity entity = new PropertyGroupEntity(name);
+    return PropertyGroupMapper.toDomain(propertyGroupJpaRepository.saveAndFlush(entity));
+  }
+
+  @Override
+  public List<PropertyGroup> findAll() {
+    return propertyGroupJpaRepository.findAll().stream().map(PropertyGroupMapper::toDomain).toList();
+  }
+
+  @Override
+  public PropertyGroup save(PropertyGroup chain) {
+    PropertyGroupEntity entity = PropertyGroupMapper.toEntity(chain);
     return PropertyGroupMapper.toDomain(propertyGroupJpaRepository.saveAndFlush(entity));
   }
 
