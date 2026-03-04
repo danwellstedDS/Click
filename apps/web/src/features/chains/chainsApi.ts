@@ -5,7 +5,7 @@ export function list(): Promise<Chain[]> {
   return apiRequest<Chain[]>("/api/v1/chains");
 }
 
-export function create(data: { name: string; timezone?: string; currency?: string }): Promise<Chain> {
+export function create(data: { name: string; timezone?: string; currency?: string; organizationId?: string }): Promise<Chain> {
   return apiRequest<Chain>("/api/v1/chains", {
     method: "POST",
     body: JSON.stringify(data),

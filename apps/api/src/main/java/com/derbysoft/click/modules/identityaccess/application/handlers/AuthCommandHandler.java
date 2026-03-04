@@ -14,6 +14,7 @@ import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.LoginReque
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.LoginResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.MeResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TenantInfo;
+import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TenantSummary;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TokenResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.UserInfo;
 import com.derbysoft.click.modules.organisationstructure.api.contracts.PropertyGroupInfo;
@@ -170,6 +171,16 @@ public class AuthCommandHandler {
         tenantName,
         principal.role().name()
     );
+  }
+
+  public List<TenantSummary> listTenants(UserPrincipal principal) {
+    return tenantMembershipRepository.findByUserId(principal.userId())
+        .stream()
+        .flatMap(m -> propertyGroupQueryPort.findInfoById(m.tenantId())
+            .filter(info -> "ACTIVE".equals(info.status()))
+            .map(info -> new TenantSummary(m.tenantId().toString(), info.name(), m.role().name()))
+            .stream())
+        .toList();
   }
 
   public void logout(UserPrincipal principal, String refreshToken) {

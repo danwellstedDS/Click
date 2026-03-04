@@ -48,7 +48,7 @@ public class ChainManagementController {
       @AuthenticationPrincipal UserPrincipal principal,
       HttpServletRequest request
   ) {
-    PropertyGroup chain = chainManagementService.createChain(body.name(), body.timezone(), body.currency(), principal);
+    PropertyGroup chain = chainManagementService.createChain(body.name(), body.timezone(), body.currency(), body.organizationId(), principal);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(toResponse(chain), requestId(request)));
   }

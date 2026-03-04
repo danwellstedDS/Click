@@ -3,15 +3,24 @@ package com.derbysoft.click.modules.organisationstructure.application.handlers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
+import com.derbysoft.click.modules.identityaccess.domain.TenantMembershipRepository;
 import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.organisationstructure.domain.PropertyGroupRepository;
 import com.derbysoft.click.modules.organisationstructure.domain.aggregates.PropertyGroup;
 import com.derbysoft.click.modules.organisationstructure.domain.valueobjects.ChainStatus;
+import com.derbysoft.click.modules.tenantgovernance.domain.AccessScopeRepository;
+import com.derbysoft.click.modules.tenantgovernance.domain.ScopeAccessGrantRepository;
+import com.derbysoft.click.modules.tenantgovernance.domain.entities.AccessScope;
+import com.derbysoft.click.modules.tenantgovernance.domain.valueobjects.GrantRole;
+import com.derbysoft.click.modules.tenantgovernance.domain.valueobjects.ScopeType;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.time.Instant;
 import java.util.List;
@@ -31,6 +40,15 @@ class ChainManagementServiceTest {
 
   @Mock
   private InProcessEventBus eventBus;
+
+  @Mock
+  private TenantMembershipRepository tenantMembershipRepository;
+
+  @Mock
+  private AccessScopeRepository accessScopeRepository;
+
+  @Mock
+  private ScopeAccessGrantRepository scopeAccessGrantRepository;
 
   @InjectMocks
   private ChainManagementService chainManagementService;
@@ -73,7 +91,7 @@ class ChainManagementServiceTest {
   void shouldCreateChainWithActiveStatus() {
     when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-    PropertyGroup result = chainManagementService.createChain("New Chain", "UTC", "USD", adminPrincipal());
+    PropertyGroup result = chainManagementService.createChain("New Chain", "UTC", "USD", null, adminPrincipal());
 
     assertThat(result.getName()).isEqualTo("New Chain");
     assertThat(result.getStatus()).isEqualTo(ChainStatus.ACTIVE);
@@ -82,8 +100,43 @@ class ChainManagementServiceTest {
 
   @Test
   void shouldThrowValidationErrorWhenNameBlank() {
-    assertThatThrownBy(() -> chainManagementService.createChain("", "UTC", "USD", adminPrincipal()))
+    assertThatThrownBy(() -> chainManagementService.createChain("", "UTC", "USD", null, adminPrincipal()))
         .isInstanceOf(DomainError.ValidationError.class);
+  }
+
+  @Test
+  void shouldCreateTenantMembershipForCreatorOnChainCreation() {
+    UserPrincipal admin = adminPrincipal();
+    when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+    chainManagementService.createChain("New Chain", "UTC", "USD", null, admin);
+
+    verify(tenantMembershipRepository).create(any(UUID.class), eq(admin.userId()), any(UUID.class), eq(Role.ADMIN));
+  }
+
+  @Test
+  void shouldCreateAccessScopeAndGrantWhenOrgIdProvided() {
+    UUID orgId = UUID.randomUUID();
+    UUID scopeId = UUID.randomUUID();
+    PropertyGroup saved = activeChain(CHAIN_ID);
+    when(repository.save(any())).thenReturn(saved);
+    AccessScope scope = new AccessScope(scopeId, ScopeType.PROPERTY_GROUP, CHAIN_ID, null, null, Instant.now());
+    when(accessScopeRepository.create(eq(ScopeType.PROPERTY_GROUP), eq(CHAIN_ID), isNull(), isNull())).thenReturn(scope);
+
+    chainManagementService.createChain("New Chain", "UTC", "USD", orgId, adminPrincipal());
+
+    verify(accessScopeRepository).create(ScopeType.PROPERTY_GROUP, CHAIN_ID, null, null);
+    verify(scopeAccessGrantRepository).create(orgId, scopeId, GrantRole.ADMIN);
+  }
+
+  @Test
+  void shouldNotCreateScopeGrantWhenOrgIdNull() {
+    when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+    chainManagementService.createChain("New Chain", "UTC", "USD", null, adminPrincipal());
+
+    verify(accessScopeRepository, never()).create(any(), any(), any(), any());
+    verify(scopeAccessGrantRepository, never()).create(any(), any(), any());
   }
 
   @Test

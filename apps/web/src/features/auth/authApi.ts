@@ -1,6 +1,8 @@
 import { apiRequest } from "../../lib/apiClient";
 import type { LoginResponse, MeResponse, TokenResponse } from "./types";
 
+export type TenantSummary = { tenantId: string; tenantName: string; role: string };
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   return apiRequest<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
@@ -25,4 +27,8 @@ export async function switchTenant(tenantId: string): Promise<TokenResponse> {
 
 export async function refresh(): Promise<TokenResponse> {
   return apiRequest<TokenResponse>("/api/v1/auth/refresh", { method: "POST" });
+}
+
+export async function listTenants(): Promise<TenantSummary[]> {
+  return apiRequest<TenantSummary[]>("/api/v1/auth/tenants");
 }
