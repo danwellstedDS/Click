@@ -34,6 +34,9 @@ public class PropertyGroupEntity {
   @Column(name = "primary_org_id")
   private UUID primaryOrgId;
 
+  @Column(nullable = false)
+  private String status;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -46,6 +49,20 @@ public class PropertyGroupEntity {
 
   public PropertyGroupEntity(String name) {
     this.name = name;
+    this.status = "ACTIVE";
+  }
+
+  /** Constructor for updates — id is set (non-null), so Spring Data JPA will call merge(). */
+  public PropertyGroupEntity(UUID id, UUID parentId, String name, String timezone, String currency, UUID primaryOrgId, String status, Instant createdAt, Instant updatedAt) {
+    this.id = id;
+    this.parentId = parentId;
+    this.name = name;
+    this.timezone = timezone;
+    this.currency = currency;
+    this.primaryOrgId = primaryOrgId;
+    this.status = status;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
   public UUID getId() { return id; }
@@ -54,6 +71,8 @@ public class PropertyGroupEntity {
   public String getTimezone() { return timezone; }
   public String getCurrency() { return currency; }
   public UUID getPrimaryOrgId() { return primaryOrgId; }
+  public String getStatus() { return status; }
+  public void setStatus(String status) { this.status = status; }
   public Instant getCreatedAt() { return createdAt; }
   public Instant getUpdatedAt() { return updatedAt; }
 }

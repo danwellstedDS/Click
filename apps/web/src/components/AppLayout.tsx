@@ -25,6 +25,8 @@ import {
   UserOutlined,
   LogoutOutlined,
   DashboardOutlined,
+  SettingOutlined,
+  ApartmentOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../features/auth/AuthContext";
 import logo from "../assets/logo.svg";
@@ -33,12 +35,24 @@ const NAV_ROUTES: Record<string, string> = {
   dashboard: "/",
   users: "/users",
   properties: "/properties",
+  chains: "/chains",
 };
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { key: "dashboard",  icon: <DashboardOutlined />, label: "Dashboard" },
   { key: "properties", icon: <HomeOutlined />,      label: "Properties" },
   { key: "users",      icon: <TeamOutlined />,      label: "Users" },
+];
+
+const ADMIN_NAV_ITEMS = [
+  {
+    key: "admin",
+    icon: <SettingOutlined />,
+    label: "Derbysoft Admin",
+    children: [
+      { key: "chains", icon: <ApartmentOutlined />, label: "Chain Management" },
+    ],
+  },
 ];
 
 const HEADER_HEIGHT = 56;
@@ -54,6 +68,10 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(true);
   const initial = user?.email?.[0]?.toUpperCase() ?? "?";
+
+  const navItems = user?.role === "ADMIN"
+    ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
+    : BASE_NAV_ITEMS;
 
   async function handleLogout() {
     await logout();
@@ -162,7 +180,7 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
           <div style={{ flex: 1, overflowY: "auto" }}>
             <Menu
               mode="inline"
-              items={NAV_ITEMS}
+              items={navItems}
               style={{ borderRight: 0 }}
               onClick={({ key }) => {
                 if (NAV_ROUTES[key]) navigate(NAV_ROUTES[key]);

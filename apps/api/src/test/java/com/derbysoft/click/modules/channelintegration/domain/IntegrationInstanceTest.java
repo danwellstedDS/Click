@@ -16,6 +16,7 @@ import com.derbysoft.click.modules.channelintegration.domain.valueobjects.Integr
 import com.derbysoft.click.modules.channelintegration.domain.valueobjects.SyncSchedule;
 import com.derbysoft.click.modules.channelintegration.domain.valueobjects.SyncStatus;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 

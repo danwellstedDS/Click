@@ -6,6 +6,7 @@ import { AdminRoute } from "./features/auth/AdminRoute";
 import { UsersListPage } from "./features/users/UsersListPage";
 import { UserDetailPage } from "./features/users/UserDetailPage";
 import { PropertiesListPage } from "./features/properties/PropertiesListPage";
+import { ChainsListPage } from "./features/chains/ChainsListPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 
 export function App() {
@@ -39,6 +40,16 @@ export function App() {
           <PrivateRoute>
             <AdminRoute>
               <UserDetailPage />
+            </AdminRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/chains"
+        element={
+          <PrivateRoute>
+            <AdminRoute>
+              <ChainsListPage />
             </AdminRoute>
           </PrivateRoute>
         }
