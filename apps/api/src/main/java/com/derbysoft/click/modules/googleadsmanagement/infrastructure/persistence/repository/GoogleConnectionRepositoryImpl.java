@@ -60,6 +60,13 @@ public class GoogleConnectionRepositoryImpl
     // GoogleAdsQueryPort
 
     @Override
+    public List<GoogleAdsConnectionInfo> findAllActiveConnections() {
+        return jpaRepository.findAllByStatus("ACTIVE").stream()
+            .map(e -> new GoogleAdsConnectionInfo(e.getId(), e.getTenantId(), e.getManagerId(), e.getStatus()))
+            .toList();
+    }
+
+    @Override
     public Optional<GoogleAdsConnectionInfo> findConnectionByTenantId(UUID tenantId) {
         return jpaRepository.findByTenantId(tenantId)
             .map(e -> new GoogleAdsConnectionInfo(e.getId(), e.getTenantId(), e.getManagerId(), e.getStatus()));

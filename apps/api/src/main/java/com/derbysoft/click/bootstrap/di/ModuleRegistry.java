@@ -12,6 +12,15 @@ import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistenc
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountGraphStateRepositoryImpl;
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionJpaRepository;
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionRepositoryImpl;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.RawSnapshotMapper;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncIncidentMapper;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncJobMapper;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawSnapshotJpaRepository;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawSnapshotRepositoryImpl;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncIncidentJpaRepository;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncIncidentRepositoryImpl;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncJobJpaRepository;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncJobRepositoryImpl;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupJpaRepository;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupRepositoryImpl;
 import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
@@ -87,5 +96,37 @@ public class ModuleRegistry {
       AccountGraphStateJpaRepository jpaRepository,
       AccountGraphStateMapper mapper) {
     return new AccountGraphStateRepositoryImpl(jpaRepository, mapper);
+  }
+
+  // ── BC7 (ingestion) ──────────────────────────────────────────────────────
+
+  @Bean
+  public SyncJobRepositoryImpl syncJobRepositoryImpl(
+      SyncJobJpaRepository jpaRepository,
+      SyncJobMapper mapper) {
+    return new SyncJobRepositoryImpl(jpaRepository, mapper);
+  }
+
+  @Bean
+  public RawSnapshotRepositoryImpl rawSnapshotRepositoryImpl(
+      RawSnapshotJpaRepository jpaRepository,
+      RawSnapshotMapper mapper) {
+    return new RawSnapshotRepositoryImpl(jpaRepository, mapper);
+  }
+
+  /**
+   * BC7 (ingestion): SyncIncidentRepositoryImpl implements both
+   * {@code SyncIncidentRepository} (BC7 domain port) and
+   * {@code IngestionQueryPort} (BC7 public API port). Dual-interface pattern — same as
+   * {@code GoogleConnectionRepositoryImpl} in googleadsmanagement.
+   */
+  @Bean
+  public SyncIncidentRepositoryImpl syncIncidentRepositoryImpl(
+      SyncIncidentJpaRepository incidentJpaRepository,
+      SyncJobJpaRepository syncJobJpaRepository,
+      SyncIncidentMapper incidentMapper,
+      SyncJobMapper syncJobMapper) {
+    return new SyncIncidentRepositoryImpl(incidentJpaRepository, syncJobJpaRepository,
+        incidentMapper, syncJobMapper);
   }
 }
