@@ -16,6 +16,7 @@ import {
   HomeOutlined,
   BellOutlined,
   QuestionCircleOutlined,
+  CheckOutlined,
   DownOutlined,
   LeftOutlined,
   RightOutlined,
@@ -28,6 +29,7 @@ import {
   SettingOutlined,
   ApartmentOutlined,
 } from "@ant-design/icons";
+import type { MenuProps } from "@derbysoft/neat-design";
 import { useAuth } from "../features/auth/AuthContext";
 import logo from "../assets/logo.svg";
 
@@ -64,7 +66,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, tenants, logout, switchTenant } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(true);
   const initial = user?.email?.[0]?.toUpperCase() ?? "?";
@@ -77,6 +79,13 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
     await logout();
     navigate("/login");
   }
+
+  const chainSwitcherItems: MenuProps["items"] = tenants.map((t) => ({
+    key: t.tenantId,
+    label: t.tenantName,
+    icon: t.tenantId === user?.tenantId ? <CheckOutlined /> : null,
+    onClick: () => switchTenant(t.tenantId),
+  }));
 
   const profileMenuItems = [
     { key: "profile", icon: <UserOutlined />, label: "Profile" },
@@ -111,7 +120,7 @@ export function AppLayout({ title, breadcrumb, children }: AppLayoutProps) {
           <Divider type="vertical" style={{ height: 24, margin: "0 8px" }} />
           <img src={logo} alt="DerbySoft" style={{ height: 28, display: "block" }} />
           <Divider type="vertical" style={{ height: 24, margin: "0 12px" }} />
-          <Dropdown menu={{ items: [] }} trigger={["click"]}>
+          <Dropdown menu={{ items: chainSwitcherItems }} trigger={["click"]}>
             <Button
               style={{
                 display: "flex",

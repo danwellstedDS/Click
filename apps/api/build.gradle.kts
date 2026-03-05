@@ -23,6 +23,7 @@ dependencies {
   implementation(libs.flyway.postgres)
   runtimeOnly(libs.postgres)
   implementation(libs.java.jwt)
+  implementation(libs.google.ads)
 
   testImplementation(libs.spring.boot.starter.test)
   testImplementation(libs.spring.boot.test)

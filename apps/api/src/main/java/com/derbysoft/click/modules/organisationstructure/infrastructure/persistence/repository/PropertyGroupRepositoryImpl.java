@@ -46,7 +46,7 @@ public class PropertyGroupRepositoryImpl implements PropertyGroupRepository, Pro
   @Override
   public Optional<PropertyGroupInfo> findInfoById(UUID id) {
     return propertyGroupJpaRepository.findById(id)
-        .map(e -> new PropertyGroupInfo(e.getId(), e.getName(), e.getPrimaryOrgId()));
+        .map(e -> new PropertyGroupInfo(e.getId(), e.getName(), e.getPrimaryOrgId(), e.getStatus()));
   }
 
 }

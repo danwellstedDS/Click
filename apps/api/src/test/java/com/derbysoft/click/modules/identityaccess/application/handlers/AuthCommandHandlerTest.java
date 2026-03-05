@@ -16,7 +16,10 @@ import com.derbysoft.click.modules.identityaccess.domain.aggregates.User;
 import com.derbysoft.click.modules.identityaccess.domain.entities.TenantMembership;
 import com.derbysoft.click.modules.identityaccess.domain.valueobjects.Role;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.JwtService;
+import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.LoginRequest;
+import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TenantSummary;
+import com.derbysoft.click.modules.organisationstructure.api.contracts.PropertyGroupInfo;
 import com.derbysoft.click.modules.organisationstructure.api.ports.PropertyGroupQueryPort;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.time.Instant;
@@ -125,5 +128,39 @@ class AuthCommandHandlerTest {
 
     assertThatThrownBy(() -> authCommandHandler.login(new LoginRequest("user@example.com", "password")))
         .isInstanceOf(DomainError.Unauthenticated.class);
+  }
+
+  @Test
+  void shouldReturnTenantSummaryListForCurrentUser() {
+    UUID userId = UUID.randomUUID();
+    UUID tenantId = UUID.randomUUID();
+    UserPrincipal principal = new UserPrincipal(userId, tenantId, "user@example.com", Role.ADMIN);
+    TenantMembership membership = new TenantMembership(UUID.randomUUID(), userId, tenantId, Role.ADMIN, Instant.now());
+
+    when(tenantMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+    when(propertyGroupQueryPort.findInfoById(tenantId))
+        .thenReturn(Optional.of(new PropertyGroupInfo(tenantId, "Marriott Hotels", null, "ACTIVE")));
+
+    List<TenantSummary> result = authCommandHandler.listTenants(principal);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tenantId()).isEqualTo(tenantId.toString());
+    assertThat(result.getFirst().role()).isEqualTo(Role.ADMIN.name());
+  }
+
+  @Test
+  void shouldResolveChainNameInTenantSummary() {
+    UUID userId = UUID.randomUUID();
+    UUID tenantId = UUID.randomUUID();
+    UserPrincipal principal = new UserPrincipal(userId, tenantId, "user@example.com", Role.ADMIN);
+    TenantMembership membership = new TenantMembership(UUID.randomUUID(), userId, tenantId, Role.ADMIN, Instant.now());
+
+    when(tenantMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+    when(propertyGroupQueryPort.findInfoById(tenantId))
+        .thenReturn(Optional.of(new PropertyGroupInfo(tenantId, "Hilton Worldwide", null, "ACTIVE")));
+
+    List<TenantSummary> result = authCommandHandler.listTenants(principal);
+
+    assertThat(result.getFirst().tenantName()).isEqualTo("Hilton Worldwide");
   }
 }

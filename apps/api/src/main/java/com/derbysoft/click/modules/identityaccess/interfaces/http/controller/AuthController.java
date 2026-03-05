@@ -8,12 +8,14 @@ import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.LoginRespo
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.MeResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.MessageResponse;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.SwitchTenantRequest;
+import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TenantSummary;
 import com.derbysoft.click.modules.identityaccess.interfaces.http.dto.TokenResponse;
 import com.derbysoft.click.modules.identityaccess.infrastructure.security.UserPrincipal;
 import com.derbysoft.click.sharedkernel.api.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -83,6 +85,14 @@ public class AuthController {
       HttpServletRequest httpRequest
   ) {
     return ApiResponse.success(authCommandHandler.me(principal), requestId(httpRequest));
+  }
+
+  @GetMapping("/tenants")
+  public ApiResponse<List<TenantSummary>> listTenants(
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest httpRequest
+  ) {
+    return ApiResponse.success(authCommandHandler.listTenants(principal), requestId(httpRequest));
   }
 
   @PostMapping("/logout")

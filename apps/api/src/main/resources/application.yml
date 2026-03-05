@@ -17,6 +17,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+google:
+  ads:
+    credentials-path: ${GOOGLE_ADS_CREDENTIALS_PATH:infra/secrets/google-search-creds.json}
+    developer-token: ${GOOGLE_ADS_DEVELOPER_TOKEN:}
+
 jwt:
   secret: ${JWT_SECRET:}
 

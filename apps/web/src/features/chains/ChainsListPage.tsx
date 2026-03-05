@@ -4,6 +4,7 @@ import {
   Form,
   Input,
   Modal,
+  Select,
   Spinner,
   Table,
   Tag,
@@ -11,12 +12,18 @@ import {
   Typography,
 } from "@derbysoft/neat-design";
 import { AppLayout } from "../../components/AppLayout";
+import { useAuth } from "../auth/AuthContext";
 import * as chainsApi from "./chainsApi";
+import * as organizationsApi from "./organizationsApi";
+import type { OrgOption } from "./organizationsApi";
 import type { Chain } from "./types";
 
 export function ChainsListPage() {
+  const { refreshTenants } = useAuth();
   const [chains, setChains] = useState<Chain[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [orgs, setOrgs] = useState<OrgOption[]>([]);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
@@ -42,15 +49,17 @@ export function ChainsListPage() {
 
   useEffect(() => {
     loadChains();
+    organizationsApi.list().then(setOrgs).catch(() => setOrgs([]));
   }, []);
 
-  async function handleAddChain(values: { name: string; timezone?: string; currency?: string }) {
+  async function handleAddChain(values: { name: string; timezone?: string; currency?: string; organizationId?: string }) {
     setAddLoading(true);
     try {
       const created = await chainsApi.create(values);
       setAddModalOpen(false);
       addForm.resetFields();
       setChains((prev) => [created, ...prev]);
+      await refreshTenants();
       toast.success("Chain created");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create chain";
@@ -69,6 +78,7 @@ export function ChainsListPage() {
       const updated = await chainsApi.updateStatus(chain.id, newStatus);
       setStatusModal({ open: false, chain: null });
       setChains((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      await refreshTenants();
       toast.success(`Chain ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update status";
@@ -164,6 +174,13 @@ export function ChainsListPage() {
           </Form.Item>
           <Form.Item name="currency" label="Currency">
             <Input placeholder="e.g. USD" />
+          </Form.Item>
+          <Form.Item name="organizationId" label="Organisation">
+            <Select
+              placeholder="Select organisation (optional)"
+              allowClear
+              options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Button
