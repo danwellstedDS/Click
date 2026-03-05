@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface GoogleAdsQueryPort {
     Optional<GoogleAdsConnectionInfo> findConnectionByTenantId(UUID tenantId);
+    List<GoogleAdsConnectionInfo> findAllActiveConnections();
     List<AccountBindingInfo> listActiveBindings(UUID tenantId);
 }
