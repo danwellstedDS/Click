@@ -3,6 +3,15 @@ package com.derbysoft.click.bootstrap.di;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.mapper.IntegrationInstanceMapper;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.repository.IntegrationInstanceJpaRepository;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.repository.IntegrationInstanceRepositoryImpl;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.mapper.AccountBindingMapper;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.mapper.AccountGraphStateMapper;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.mapper.GoogleConnectionMapper;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountBindingJpaRepository;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountBindingRepositoryImpl;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountGraphStateJpaRepository;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountGraphStateRepositoryImpl;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionJpaRepository;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionRepositoryImpl;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupJpaRepository;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupRepositoryImpl;
 import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
@@ -50,5 +59,33 @@ public class ModuleRegistry {
       IntegrationInstanceJpaRepository jpaRepository,
       IntegrationInstanceMapper mapper) {
     return new IntegrationInstanceRepositoryImpl(jpaRepository, mapper);
+  }
+
+  /**
+   * BC5 (google-ads-management): GoogleConnectionRepositoryImpl implements both
+   * {@code GoogleConnectionRepository} (BC5 domain port) and
+   * {@code GoogleAdsQueryPort} (BC5 public API port). Dual-interface pattern — same as
+   * {@code IntegrationInstanceRepositoryImpl}.
+   */
+  @Bean
+  public GoogleConnectionRepositoryImpl googleConnectionRepositoryImpl(
+      GoogleConnectionJpaRepository jpaRepository,
+      GoogleConnectionMapper mapper,
+      AccountBindingJpaRepository bindingJpaRepository) {
+    return new GoogleConnectionRepositoryImpl(jpaRepository, mapper, bindingJpaRepository);
+  }
+
+  @Bean
+  public AccountBindingRepositoryImpl accountBindingRepositoryImpl(
+      AccountBindingJpaRepository jpaRepository,
+      AccountBindingMapper mapper) {
+    return new AccountBindingRepositoryImpl(jpaRepository, mapper);
+  }
+
+  @Bean
+  public AccountGraphStateRepositoryImpl accountGraphStateRepositoryImpl(
+      AccountGraphStateJpaRepository jpaRepository,
+      AccountGraphStateMapper mapper) {
+    return new AccountGraphStateRepositoryImpl(jpaRepository, mapper);
   }
 }

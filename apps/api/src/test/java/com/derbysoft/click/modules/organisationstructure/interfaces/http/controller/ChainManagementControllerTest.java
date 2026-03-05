@@ -69,7 +69,7 @@ class ChainManagementControllerTest {
 
   @Test
   void shouldReturn400WhenNameMissing() throws Exception {
-    when(chainManagementService.createChain(any(), any(), any(), any()))
+    when(chainManagementService.createChain(any(), any(), any(), any(), any()))
         .thenThrow(new DomainError.ValidationError("CHAIN_400", "name is required"));
 
     mockMvc.perform(post("/api/v1/chains")

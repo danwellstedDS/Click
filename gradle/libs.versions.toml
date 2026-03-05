@@ -1,6 +1,7 @@
 [versions]
 spring-boot = "4.0.0"
 archunit = "1.4.1"
+google-ads = "42.1.0"
 spring-dependency-management = "1.1.7"
 java-jwt = "4.4.0"
 flyway = "10.17.0"
@@ -46,3 +47,5 @@ testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.re
 testcontainers-pg = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 
 archunit = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+
+google-ads = { module = "com.google.api-ads:google-ads", version.ref = "google-ads" }

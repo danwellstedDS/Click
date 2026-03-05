@@ -25,6 +25,9 @@ services:
       DB_PASS: postgres
       JWT_SECRET: ${JWT_SECRET:-dev-secret-please-change-in-production-aaa}
       ENV: development
+      GOOGLE_ADS_DEVELOPER_TOKEN: ${GOOGLE_ADS_DEVELOPER_TOKEN:-}
+    volumes:
+      - ./infra/secrets:/app/infra/secrets:ro
     depends_on:
       postgres:
         condition: service_healthy
