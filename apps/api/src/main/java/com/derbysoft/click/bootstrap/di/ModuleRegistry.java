@@ -12,6 +12,24 @@ import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistenc
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountGraphStateRepositoryImpl;
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionJpaRepository;
 import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.GoogleConnectionRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.CampaignPlanMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.DriftReportMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.ExecutionIncidentMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.PlanItemMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.PlanRevisionMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.mapper.WriteActionMapper;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.CampaignPlanJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.CampaignPlanRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.DriftReportJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.DriftReportRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.ExecutionIncidentJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.ExecutionIncidentRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.PlanItemJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.PlanItemRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.PlanRevisionJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.PlanRevisionRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.WriteActionJpaRepository;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.repository.WriteActionRepositoryImpl;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.RawSnapshotMapper;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncIncidentMapper;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncJobMapper;
@@ -120,6 +138,60 @@ public class ModuleRegistry {
    * {@code IngestionQueryPort} (BC7 public API port). Dual-interface pattern — same as
    * {@code GoogleConnectionRepositoryImpl} in googleadsmanagement.
    */
+  // ── BC6 (campaign-execution) ─────────────────────────────────────────────
+
+  @Bean
+  public CampaignPlanRepositoryImpl campaignPlanRepositoryImpl(
+      CampaignPlanJpaRepository jpaRepository,
+      CampaignPlanMapper mapper) {
+    return new CampaignPlanRepositoryImpl(jpaRepository, mapper);
+  }
+
+  @Bean
+  public PlanRevisionRepositoryImpl planRevisionRepositoryImpl(
+      PlanRevisionJpaRepository jpaRepository,
+      PlanRevisionMapper mapper) {
+    return new PlanRevisionRepositoryImpl(jpaRepository, mapper);
+  }
+
+  @Bean
+  public PlanItemRepositoryImpl planItemRepositoryImpl(
+      PlanItemJpaRepository jpaRepository,
+      PlanItemMapper mapper) {
+    return new PlanItemRepositoryImpl(jpaRepository, mapper);
+  }
+
+  /**
+   * BC6 (campaign-execution): WriteActionRepositoryImpl implements both
+   * {@code WriteActionRepository} (BC6 domain port) and
+   * {@code CampaignManagementQueryPort} (BC6 public API port). Dual-interface pattern — same as
+   * {@code SyncIncidentRepositoryImpl} in ingestion.
+   */
+  @Bean
+  public WriteActionRepositoryImpl writeActionRepositoryImpl(
+      WriteActionJpaRepository writeActionJpaRepository,
+      PlanRevisionJpaRepository planRevisionJpaRepository,
+      PlanItemJpaRepository planItemJpaRepository,
+      ExecutionIncidentJpaRepository executionIncidentJpaRepository,
+      WriteActionMapper writeActionMapper) {
+    return new WriteActionRepositoryImpl(writeActionJpaRepository, planRevisionJpaRepository,
+        planItemJpaRepository, executionIncidentJpaRepository, writeActionMapper);
+  }
+
+  @Bean
+  public ExecutionIncidentRepositoryImpl executionIncidentRepositoryImpl(
+      ExecutionIncidentJpaRepository jpaRepository,
+      ExecutionIncidentMapper mapper) {
+    return new ExecutionIncidentRepositoryImpl(jpaRepository, mapper);
+  }
+
+  @Bean
+  public DriftReportRepositoryImpl driftReportRepositoryImpl(
+      DriftReportJpaRepository jpaRepository,
+      DriftReportMapper mapper) {
+    return new DriftReportRepositoryImpl(jpaRepository, mapper);
+  }
+
   @Bean
   public SyncIncidentRepositoryImpl syncIncidentRepositoryImpl(
       SyncIncidentJpaRepository incidentJpaRepository,
