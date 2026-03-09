@@ -27,6 +27,7 @@ public class WriteActionMapper {
             entity.getNextAttemptAfter(),
             entity.getFailureClass() != null ? FailureClass.valueOf(entity.getFailureClass()) : null,
             entity.getFailureReason(),
+            entity.getTargetCustomerId(),
             entity.getTriggeredBy(),
             TriggerType.valueOf(entity.getTriggerType()),
             entity.getTriggerReason(),
@@ -51,6 +52,7 @@ public class WriteActionMapper {
             domain.getNextAttemptAfter(),
             domain.getFailureClass() != null ? domain.getFailureClass().name() : null,
             domain.getFailureReason(),
+            domain.getTargetCustomerId(),
             domain.getTriggeredBy(),
             domain.getTriggerType().name(),
             domain.getTriggerReason()

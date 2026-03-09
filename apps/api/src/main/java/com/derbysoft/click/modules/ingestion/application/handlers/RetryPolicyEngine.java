@@ -8,7 +8,7 @@ import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Component;
 
-@Component
+@Component("ingestionRetryPolicyEngine")
 public class RetryPolicyEngine {
 
     private static final long MAX_DELAY_SECONDS = 1800L;

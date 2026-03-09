@@ -22,7 +22,7 @@ class WriteActionTest {
 
     private WriteAction newAction() {
         return WriteAction.create(ID, REVISION_ID, ITEM_ID, TENANT_ID,
-            WriteActionType.CREATE_CAMPAIGN, 0,
+            WriteActionType.CREATE_CAMPAIGN, 0, "123456789",
             TriggerType.SCHEDULED, "scheduler", "initial apply", NOW);
     }
 

@@ -75,7 +75,7 @@ public class WriteActionExecutor {
                 .orElseThrow(() -> new IllegalStateException(
                     "No Google Ads connection for tenant: " + action.getTenantId()));
 
-            String customerId = resolveCustomerId(connectionInfo);
+            String customerId = resolveCustomerId(action);
             String managerId = connectionInfo.managerId();
 
             MutationResult result = dispatch(action, item, customerId, managerId);
@@ -141,9 +141,8 @@ public class WriteActionExecutor {
         };
     }
 
-    private String resolveCustomerId(
-            com.derbysoft.click.modules.googleadsmanagement.api.contracts.GoogleAdsConnectionInfo info) {
-        return info.managerId();
+    private String resolveCustomerId(WriteAction action) {
+        return action.getTargetCustomerId();
     }
 
     private void publishAndClear(PlanItem item) {

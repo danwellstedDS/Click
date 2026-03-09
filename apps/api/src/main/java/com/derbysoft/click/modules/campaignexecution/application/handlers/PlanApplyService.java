@@ -9,6 +9,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteActi
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.PlanRevisionStatus;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.TriggerType;
+import com.derbysoft.click.modules.googleadsmanagement.api.ports.GoogleAdsQueryPort;
 import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.time.Instant;
@@ -24,15 +25,18 @@ public class PlanApplyService {
     private final PlanRevisionRepository revisionRepository;
     private final PlanItemRepository planItemRepository;
     private final WriteActionRepository writeActionRepository;
+    private final GoogleAdsQueryPort googleAdsQueryPort;
     private final InProcessEventBus eventBus;
 
     public PlanApplyService(PlanRevisionRepository revisionRepository,
                              PlanItemRepository planItemRepository,
                              WriteActionRepository writeActionRepository,
+                             GoogleAdsQueryPort googleAdsQueryPort,
                              InProcessEventBus eventBus) {
         this.revisionRepository = revisionRepository;
         this.planItemRepository = planItemRepository;
         this.writeActionRepository = writeActionRepository;
+        this.googleAdsQueryPort = googleAdsQueryPort;
         this.eventBus = eventBus;
     }
 
@@ -52,6 +56,11 @@ public class PlanApplyService {
                 "Can only apply PUBLISHED revisions; current status: " + revision.getStatus());
         }
 
+        String targetCustomerId = googleAdsQueryPort.listActiveBindings(tenantId)
+            .stream().findFirst()
+            .map(b -> b.customerId())
+            .orElse(null);
+
         Instant now = Instant.now();
         revision.startApply(now);
         PlanRevision saved = revisionRepository.save(revision);
@@ -66,6 +75,7 @@ public class PlanApplyService {
             WriteAction action = WriteAction.create(
                 UUID.randomUUID(), revisionId, item.getId(), tenantId,
                 item.getActionType(), item.getAttempts(),
+                targetCustomerId,
                 TriggerType.SCHEDULED, triggeredBy, reason, now
             );
             writeActionRepository.save(action);

@@ -345,6 +345,16 @@ A **Google Ads ACL** lives here (domain model <-> Google Ads API translations on
 - Deterministic apply order: Campaign -> AdGroup -> Ads -> Keywords (reverse for deletes).
 - Drift handling in MVP: open incident + explicit operator action (no auto-reconcile).
 
+### Phase 2 locked decisions
+
+- `CampaignPlan` carries `targetCustomerId` (String) — the Google Ads customer account this plan targets.
+- All 8 mutation types (CREATE/UPDATE for Campaign, AdGroup, Ad, Keyword) now call the real Google Ads API v23.
+- Campaign create auto-creates a `CampaignBudget` resource in the same operation.
+- Payload schema is JSON (see spec); all mutation clients parse via Jackson.
+- `WriteAction.targetCustomerId` is snapshot-set at apply time from `CampaignPlan.targetCustomerId`.
+- API version migration path: update imports in `GoogleAdsMutationClient` only; domain and port are unaffected.
+- `MutationApiException` (carries `FailureClass`) is classified directly; `MutationAuthException` remains PERMANENT.
+
 ### Aggregates
 
 - **CampaignPlan** (root): logical plan identity and high-level ownership context.

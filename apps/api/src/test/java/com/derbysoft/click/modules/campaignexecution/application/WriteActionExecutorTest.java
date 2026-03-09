@@ -64,7 +64,8 @@ class WriteActionExecutorTest {
 
     private WriteAction pendingAction() {
         return WriteAction.create(ACTION_ID, REVISION_ID, ITEM_ID, TENANT_ID,
-            WriteActionType.CREATE_CAMPAIGN, 0, TriggerType.SCHEDULED, "scheduler", "apply", NOW);
+            WriteActionType.CREATE_CAMPAIGN, 0, "123456789",
+            TriggerType.SCHEDULED, "scheduler", "apply", NOW);
     }
 
     private PlanItem publishedItem() {

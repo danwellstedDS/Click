@@ -27,6 +27,7 @@ public final class WriteAction {
     private Instant nextAttemptAfter;
     private FailureClass failureClass;
     private String failureReason;
+    private final String targetCustomerId;
     private final String triggeredBy;
     private final TriggerType triggerType;
     private final String triggerReason;
@@ -39,6 +40,7 @@ public final class WriteAction {
                         WriteActionStatus status, int attempts, int maxAttempts,
                         Instant lastAttemptAt, Instant leaseExpiresAt, Instant nextAttemptAfter,
                         FailureClass failureClass, String failureReason,
+                        String targetCustomerId,
                         String triggeredBy, TriggerType triggerType, String triggerReason,
                         Instant createdAt, Instant updatedAt) {
         this.id = id;
@@ -55,6 +57,7 @@ public final class WriteAction {
         this.nextAttemptAfter = nextAttemptAfter;
         this.failureClass = failureClass;
         this.failureReason = failureReason;
+        this.targetCustomerId = targetCustomerId;
         this.triggeredBy = triggeredBy;
         this.triggerType = triggerType;
         this.triggerReason = triggerReason;
@@ -64,6 +67,7 @@ public final class WriteAction {
 
     public static WriteAction create(UUID id, UUID revisionId, UUID itemId, UUID tenantId,
                                       WriteActionType actionType, int targetVersion,
+                                      String targetCustomerId,
                                       TriggerType triggerType,
                                       String triggeredBy, String triggerReason, Instant now) {
         String key = IdempotencyKey.compute(revisionId, itemId, actionType, targetVersion);
@@ -71,6 +75,7 @@ public final class WriteAction {
             WriteActionStatus.PENDING, 0, 3,
             null, null, null,
             null, null,
+            targetCustomerId,
             triggeredBy, triggerType, triggerReason,
             now, now);
     }
@@ -81,6 +86,7 @@ public final class WriteAction {
                                             Instant lastAttemptAt, Instant leaseExpiresAt,
                                             Instant nextAttemptAfter,
                                             FailureClass failureClass, String failureReason,
+                                            String targetCustomerId,
                                             String triggeredBy, TriggerType triggerType,
                                             String triggerReason,
                                             Instant createdAt, Instant updatedAt) {
@@ -88,6 +94,7 @@ public final class WriteAction {
             status, attempts, maxAttempts,
             lastAttemptAt, leaseExpiresAt, nextAttemptAfter,
             failureClass, failureReason,
+            targetCustomerId,
             triggeredBy, triggerType, triggerReason,
             createdAt, updatedAt);
     }
@@ -145,6 +152,7 @@ public final class WriteAction {
     public Instant getNextAttemptAfter() { return nextAttemptAfter; }
     public FailureClass getFailureClass() { return failureClass; }
     public String getFailureReason() { return failureReason; }
+    public String getTargetCustomerId() { return targetCustomerId; }
     public String getTriggeredBy() { return triggeredBy; }
     public TriggerType getTriggerType() { return triggerType; }
     public String getTriggerReason() { return triggerReason; }

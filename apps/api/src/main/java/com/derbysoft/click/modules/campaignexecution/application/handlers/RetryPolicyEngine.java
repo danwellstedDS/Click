@@ -2,20 +2,20 @@ package com.derbysoft.click.modules.campaignexecution.application.handlers;
 
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteAction;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationApiException;
 import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationAuthException;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Component;
 
-@Component
+@Component("ceRetryPolicyEngine")
 public class RetryPolicyEngine {
 
     private static final long MAX_DELAY_SECONDS = 900L;
 
     public FailureClass classify(Exception e) {
-        if (e instanceof MutationAuthException) {
-            return FailureClass.PERMANENT;
-        }
+        if (e instanceof MutationAuthException) return FailureClass.PERMANENT;
+        if (e instanceof MutationApiException mae) return mae.getFailureClass();
         return FailureClass.TRANSIENT;
     }
 

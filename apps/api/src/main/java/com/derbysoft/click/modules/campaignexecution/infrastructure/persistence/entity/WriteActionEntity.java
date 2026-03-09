@@ -65,6 +65,9 @@ public class WriteActionEntity {
     @Column(name = "trigger_reason", columnDefinition = "TEXT")
     private String triggerReason;
 
+    @Column(name = "target_customer_id", length = 30)
+    private String targetCustomerId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -80,6 +83,7 @@ public class WriteActionEntity {
                               String status, int attempts, int maxAttempts,
                               Instant lastAttemptAt, Instant leaseExpiresAt, Instant nextAttemptAfter,
                               String failureClass, String failureReason,
+                              String targetCustomerId,
                               String triggeredBy, String triggerType, String triggerReason) {
         this.id = id;
         this.revisionId = revisionId;
@@ -95,6 +99,7 @@ public class WriteActionEntity {
         this.nextAttemptAfter = nextAttemptAfter;
         this.failureClass = failureClass;
         this.failureReason = failureReason;
+        this.targetCustomerId = targetCustomerId;
         this.triggeredBy = triggeredBy;
         this.triggerType = triggerType;
         this.triggerReason = triggerReason;
@@ -114,6 +119,7 @@ public class WriteActionEntity {
     public Instant getNextAttemptAfter() { return nextAttemptAfter; }
     public String getFailureClass() { return failureClass; }
     public String getFailureReason() { return failureReason; }
+    public String getTargetCustomerId() { return targetCustomerId; }
     public String getTriggeredBy() { return triggeredBy; }
     public String getTriggerType() { return triggerType; }
     public String getTriggerReason() { return triggerReason; }
@@ -121,6 +127,7 @@ public class WriteActionEntity {
     public Instant getUpdatedAt() { return updatedAt; }
 
     public void setStatus(String status) { this.status = status; }
+    public void setTargetCustomerId(String targetCustomerId) { this.targetCustomerId = targetCustomerId; }
     public void setAttempts(int attempts) { this.attempts = attempts; }
     public void setLastAttemptAt(Instant lastAttemptAt) { this.lastAttemptAt = lastAttemptAt; }
     public void setLeaseExpiresAt(Instant leaseExpiresAt) { this.leaseExpiresAt = leaseExpiresAt; }

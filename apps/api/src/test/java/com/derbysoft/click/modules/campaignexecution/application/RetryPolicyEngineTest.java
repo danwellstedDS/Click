@@ -7,6 +7,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteActi
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.TriggerType;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.WriteActionType;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationApiException;
 import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationAuthException;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,7 +22,7 @@ class RetryPolicyEngineTest {
     private WriteAction actionWithAttempts(int attempts) {
         WriteAction action = WriteAction.create(
             UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-            WriteActionType.CREATE_CAMPAIGN, 0,
+            WriteActionType.CREATE_CAMPAIGN, 0, "123456789",
             TriggerType.SCHEDULED, "scheduler", "apply", NOW
         );
         for (int i = 0; i < attempts; i++) {
@@ -41,6 +42,20 @@ class RetryPolicyEngineTest {
     @Test
     void shouldClassifyGenericExceptionAsTransient() {
         FailureClass fc = engine.classify(new RuntimeException("network error"));
+        assertThat(fc).isEqualTo(FailureClass.TRANSIENT);
+    }
+
+    @Test
+    void shouldClassifyMutationApiExceptionPermanent() {
+        FailureClass fc = engine.classify(
+            new MutationApiException(FailureClass.PERMANENT, "invalid field", null));
+        assertThat(fc).isEqualTo(FailureClass.PERMANENT);
+    }
+
+    @Test
+    void shouldClassifyMutationApiExceptionTransient() {
+        FailureClass fc = engine.classify(
+            new MutationApiException(FailureClass.TRANSIENT, "deadline exceeded", null));
         assertThat(fc).isEqualTo(FailureClass.TRANSIENT);
     }
 
