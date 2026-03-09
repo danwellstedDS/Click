@@ -523,6 +523,7 @@ Eleven gaps between spec and implementation closed. All are locked decisions:
 - Rate-limit breach behavior: hard reject with `retryAfter`.
 - Raw data strategy: upsert-overwrite at natural key/date grain; keep snapshot/job audit metadata.
 - Auth/permission failures are non-retryable for current job and immediately notify BC4/BC5.
+- **Dev seed data** (`V202603090002`): 4 weekly sync jobs, 4 snapshots, 90 campaign rows (3 campaigns × 30 days, 2026-02-06 to 2026-03-07), and 2 sync incidents seeded for the demo tenant to support BC8 normalisation development and testing.
 
 ### Failure and incident model
 
