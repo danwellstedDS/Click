@@ -2,7 +2,6 @@ package com.derbysoft.click.modules.campaignexecution.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,6 +12,7 @@ import com.derbysoft.click.modules.campaignexecution.application.handlers.RetryP
 import com.derbysoft.click.modules.campaignexecution.application.handlers.RevisionCompletionChecker;
 import com.derbysoft.click.modules.campaignexecution.application.handlers.WriteActionExecutor;
 import com.derbysoft.click.modules.campaignexecution.application.ports.GoogleAdsMutationPort;
+import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
 import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.WriteActionRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteAction;
@@ -42,6 +42,7 @@ class WriteActionExecutorTest {
     @Mock PlanItemRepository planItemRepository;
     @Mock GoogleAdsMutationPort mutationPort;
     @Mock GoogleAdsQueryPort googleAdsQueryPort;
+    @Mock TenantGovernancePort governancePort;
     @Mock InProcessEventBus eventBus;
     @Mock RetryPolicyEngine retryPolicyEngine;
     @Mock ExecutionIncidentLifecycleService incidentLifecycleService;
@@ -58,7 +59,7 @@ class WriteActionExecutorTest {
     @BeforeEach
     void setUp() {
         executor = new WriteActionExecutor(writeActionRepository, planItemRepository,
-            mutationPort, googleAdsQueryPort, eventBus, retryPolicyEngine,
+            mutationPort, googleAdsQueryPort, governancePort, eventBus, retryPolicyEngine,
             incidentLifecycleService, revisionCompletionChecker);
     }
 
@@ -98,7 +99,7 @@ class WriteActionExecutorTest {
         executor.execute(ACTION_ID);
 
         assertThat(action.getStatus()).isEqualTo(WriteActionStatus.SUCCEEDED);
-        verify(incidentLifecycleService).onSuccess(anyString(), eq(TENANT_ID));
+        verify(incidentLifecycleService).onSuccess(eq(REVISION_ID), eq(ITEM_ID), eq(TENANT_ID));
         verify(revisionCompletionChecker).checkRevisionCompletion(REVISION_ID);
     }
 
@@ -121,7 +122,7 @@ class WriteActionExecutorTest {
         executor.execute(ACTION_ID);
 
         assertThat(action.getFailureClass()).isEqualTo(FailureClass.TRANSIENT);
-        verify(incidentLifecycleService).onFailure(anyString(), eq(TENANT_ID), eq(FailureClass.TRANSIENT));
+        verify(incidentLifecycleService).onFailure(eq(REVISION_ID), eq(ITEM_ID), eq(TENANT_ID), eq(FailureClass.TRANSIENT));
     }
 
     @Test
@@ -137,11 +138,10 @@ class WriteActionExecutorTest {
             .thenReturn(Optional.of(connectionInfo()));
         when(mutationPort.createCampaign(any(), any(), any()))
             .thenThrow(new MutationAuthException("auth revoked", null));
-        when(retryPolicyEngine.classify(any())).thenReturn(FailureClass.PERMANENT);
 
         executor.execute(ACTION_ID);
 
-        verify(incidentLifecycleService).onFailure(anyString(), eq(TENANT_ID), eq(FailureClass.PERMANENT));
+        verify(incidentLifecycleService).onFailure(eq(REVISION_ID), eq(ITEM_ID), eq(TENANT_ID), eq(FailureClass.PERMANENT));
         verify(revisionCompletionChecker).checkRevisionCompletion(REVISION_ID);
     }
 }

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.derbysoft.click.bootstrap.messaging.InProcessEventBus;
+import com.derbysoft.click.modules.campaignexecution.application.handlers.ManualExecutionRateLimitService;
 import com.derbysoft.click.modules.campaignexecution.application.handlers.PlanApplyService;
 import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.PlanRevisionRepository;
@@ -37,6 +38,7 @@ class PlanApplyServiceTest {
     @Mock PlanItemRepository planItemRepository;
     @Mock WriteActionRepository writeActionRepository;
     @Mock GoogleAdsQueryPort googleAdsQueryPort;
+    @Mock ManualExecutionRateLimitService rateLimitService;
     @Mock InProcessEventBus eventBus;
 
     private PlanApplyService service;
@@ -49,7 +51,7 @@ class PlanApplyServiceTest {
     @BeforeEach
     void setUp() {
         service = new PlanApplyService(revisionRepository, planItemRepository,
-            writeActionRepository, googleAdsQueryPort, eventBus);
+            writeActionRepository, googleAdsQueryPort, rateLimitService, eventBus);
     }
 
     private PlanRevision publishedRevision() {

@@ -9,6 +9,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.aggregates.CampaignP
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.PlanRevision;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.ApplyOrder;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.WriteActionType;
+import com.derbysoft.click.modules.campaignexecution.domain.errors.RateLimitExceededException;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.ApplyRevisionRequest;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.CampaignPlanResponse;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.CancelRevisionRequest;
@@ -21,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -144,15 +146,23 @@ public class CampaignPlanController {
     public ResponseEntity<ApiResponse<PlanRevisionResponse>> applyRevision(
         @PathVariable UUID planId,
         @PathVariable UUID revId,
-        @RequestBody(required = false) ApplyRevisionRequest body,
+        @RequestBody @Valid ApplyRevisionRequest body,
         HttpServletRequest request
     ) {
         UUID tenantId = extractTenantId(request);
         String by = extractTriggeredBy(request);
-        String reason = body != null ? body.reason() : null;
-        PlanRevision revision = planApplyService.applyRevision(revId, tenantId, by, reason);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-            .body(ApiResponse.success(toResponse(revision), requestId(request)));
+        try {
+            PlanRevision revision = planApplyService.applyRevision(revId, tenantId, by, body.reason());
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(toResponse(revision), requestId(request)));
+        } catch (RateLimitExceededException e) {
+            // Gap #7: return 429 with Retry-After header (seconds)
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfter().getSeconds()));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .headers(headers)
+                .body(ApiResponse.error("CE_429", e.getMessage(), requestId(request)));
+        }
     }
 
     @PostMapping("/{planId}/revisions/{revId}/cancel")

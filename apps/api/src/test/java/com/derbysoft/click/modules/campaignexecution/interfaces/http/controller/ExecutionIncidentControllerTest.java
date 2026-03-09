@@ -50,9 +50,12 @@ class ExecutionIncidentControllerTest {
             "TRANSIENT", "ESCALATED", 3, NOW, null, null);
     }
 
+    private static final UUID REVISION_ID = UUID.randomUUID();
+    private static final UUID ITEM_ID = UUID.randomUUID();
+
     private ExecutionIncident escalatedAggregate() {
-        ExecutionIncident incident = ExecutionIncident.open(INCIDENT_ID, KEY, TENANT_ID,
-            FailureClass.TRANSIENT, NOW);
+        ExecutionIncident incident = ExecutionIncident.open(INCIDENT_ID, REVISION_ID, ITEM_ID,
+            "TRANSIENT", TENANT_ID, FailureClass.TRANSIENT, NOW);
         incident.recordFailure(NOW);
         incident.recordFailure(NOW);
         incident.clearEvents();

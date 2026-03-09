@@ -19,11 +19,17 @@ public record EventEnvelope<T>(
     UUID eventId,
     String eventType,
     Instant occurredAt,
-    T payload
+    T payload,
+    UUID correlationId,        // nullable — set from request context
+    UUID aggregateId,          // nullable — the root aggregate ID
+    int aggregateVersion,      // optimistic concurrency version; defaults to 0
+    UUID tenantId,             // nullable — tenant scoping
+    String payloadSchemaVersion  // e.g. "1.0"
 ) implements ResolvableTypeProvider {
 
   public static <T> EventEnvelope<T> of(String eventType, T payload) {
-    return new EventEnvelope<>(UUID.randomUUID(), eventType, Instant.now(), payload);
+    return new EventEnvelope<>(UUID.randomUUID(), eventType, Instant.now(), payload,
+        null, null, 0, null, "1.0");
   }
 
   @Override
