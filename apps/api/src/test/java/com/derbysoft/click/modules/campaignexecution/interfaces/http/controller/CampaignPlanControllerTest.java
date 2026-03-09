@@ -109,7 +109,7 @@ class CampaignPlanControllerTest {
                 PLAN_ID, REVISION_ID)
                 .header("X-Tenant-Id", TENANT_ID.toString())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content("{\"reason\": \"manual apply\"}"))
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.data.status").value("APPLYING"));
     }

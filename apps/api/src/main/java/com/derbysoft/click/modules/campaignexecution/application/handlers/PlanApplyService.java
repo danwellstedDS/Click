@@ -9,6 +9,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteActi
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.PlanRevisionStatus;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.TriggerType;
+import com.derbysoft.click.modules.googleadsmanagement.api.contracts.AccountBindingInfo;
 import com.derbysoft.click.modules.googleadsmanagement.api.ports.GoogleAdsQueryPort;
 import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
@@ -26,22 +27,28 @@ public class PlanApplyService {
     private final PlanItemRepository planItemRepository;
     private final WriteActionRepository writeActionRepository;
     private final GoogleAdsQueryPort googleAdsQueryPort;
+    private final ManualExecutionRateLimitService rateLimitService;
     private final InProcessEventBus eventBus;
 
     public PlanApplyService(PlanRevisionRepository revisionRepository,
                              PlanItemRepository planItemRepository,
                              WriteActionRepository writeActionRepository,
                              GoogleAdsQueryPort googleAdsQueryPort,
+                             ManualExecutionRateLimitService rateLimitService,
                              InProcessEventBus eventBus) {
         this.revisionRepository = revisionRepository;
         this.planItemRepository = planItemRepository;
         this.writeActionRepository = writeActionRepository;
         this.googleAdsQueryPort = googleAdsQueryPort;
+        this.rateLimitService = rateLimitService;
         this.eventBus = eventBus;
     }
 
     public PlanRevision applyRevision(UUID revisionId, UUID tenantId,
                                        String triggeredBy, String reason) {
+        // Gap #6: count APPLY as a manual trigger against the rate limit
+        rateLimitService.checkOrThrow(tenantId);
+
         if (revisionRepository.findActiveApplyingByTenantId(tenantId).isPresent()) {
             throw new DomainError.Conflict("CE_409",
                 "Another revision is already being applied for tenant: " + tenantId);
@@ -56,10 +63,16 @@ public class PlanApplyService {
                 "Can only apply PUBLISHED revisions; current status: " + revision.getStatus());
         }
 
-        String targetCustomerId = googleAdsQueryPort.listActiveBindings(tenantId)
-            .stream().findFirst()
-            .map(b -> b.customerId())
-            .orElse(null);
+        // Gap #2: require an active binding — fail fast if none found
+        List<AccountBindingInfo> bindings = googleAdsQueryPort.listActiveBindings(tenantId);
+        if (bindings.isEmpty()) {
+            throw new DomainError.Conflict("CE_409",
+                "No active account binding found for tenant: " + tenantId +
+                ". Ensure a Google Ads account binding is active before applying.");
+        }
+
+        // Use the first active binding (one connection per tenant)
+        String targetCustomerId = bindings.get(0).customerId();
 
         Instant now = Instant.now();
         revision.startApply(now);
@@ -76,7 +89,7 @@ public class PlanApplyService {
                 UUID.randomUUID(), revisionId, item.getId(), tenantId,
                 item.getActionType(), item.getAttempts(),
                 targetCustomerId,
-                TriggerType.SCHEDULED, triggeredBy, reason, now
+                TriggerType.APPLY, triggeredBy, reason, now
             );
             writeActionRepository.save(action);
         }

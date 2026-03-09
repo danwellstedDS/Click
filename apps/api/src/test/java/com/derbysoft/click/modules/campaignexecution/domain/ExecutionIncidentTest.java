@@ -18,12 +18,15 @@ import org.junit.jupiter.api.Test;
 class ExecutionIncidentTest {
 
     private static final UUID ID = UUID.randomUUID();
+    private static final UUID REVISION_ID = UUID.randomUUID();
+    private static final UUID ITEM_ID = UUID.randomUUID();
     private static final UUID TENANT_ID = UUID.randomUUID();
-    private static final String KEY = "revision-1:item-1:CREATE_CAMPAIGN:0";
+    private static final String FC_KEY = "TRANSIENT";
     private static final Instant NOW = Instant.parse("2026-03-06T09:00:00Z");
 
     private ExecutionIncident openIncident() {
-        return ExecutionIncident.open(ID, KEY, TENANT_ID, FailureClass.TRANSIENT, NOW);
+        return ExecutionIncident.open(ID, REVISION_ID, ITEM_ID, FC_KEY, TENANT_ID,
+            FailureClass.TRANSIENT, NOW);
     }
 
     @Test
@@ -34,6 +37,15 @@ class ExecutionIncidentTest {
         assertThat(incident.getConsecutiveFailures()).isEqualTo(1);
         assertThat(incident.getEvents()).hasSize(1);
         assertThat(incident.getEvents().get(0)).isInstanceOf(ExecutionIncidentOpened.class);
+    }
+
+    @Test
+    void shouldExposeCompositeIdentityFields() {
+        ExecutionIncident incident = openIncident();
+
+        assertThat(incident.getRevisionId()).isEqualTo(REVISION_ID);
+        assertThat(incident.getItemId()).isEqualTo(ITEM_ID);
+        assertThat(incident.getFailureClassKey()).isEqualTo(FC_KEY);
     }
 
     @Test
@@ -74,6 +86,24 @@ class ExecutionIncidentTest {
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.REOPENED);
         assertThat(incident.getEvents()).hasSize(1);
         assertThat(incident.getEvents().get(0)).isInstanceOf(ExecutionIncidentReopened.class);
+    }
+
+    @Test
+    void shouldNotExpireRecurrenceWindowWithin24h() {
+        ExecutionIncident incident = openIncident();
+        incident.autoClose(NOW);
+
+        Instant within24h = NOW.plusSeconds(3600 * 23);
+        assertThat(incident.isRecurrenceWindowExpired(within24h)).isFalse();
+    }
+
+    @Test
+    void shouldExpireRecurrenceWindowAfter24h() {
+        ExecutionIncident incident = openIncident();
+        incident.autoClose(NOW);
+
+        Instant beyond24h = NOW.plusSeconds(3600 * 25);
+        assertThat(incident.isRecurrenceWindowExpired(beyond24h)).isTrue();
     }
 
     @Test

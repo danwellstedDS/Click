@@ -3,6 +3,7 @@ package com.derbysoft.click.modules.campaignexecution.application.handlers;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.PlanRevision;
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
 import com.derbysoft.click.modules.googleadsmanagement.api.ports.GoogleAdsQueryPort;
+import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
 import java.util.List;
 import java.util.UUID;
@@ -12,12 +13,18 @@ import org.springframework.stereotype.Service;
 public class PublishValidationService {
 
     private final GoogleAdsQueryPort googleAdsQueryPort;
+    private final TenantGovernancePort governancePort;
 
-    public PublishValidationService(GoogleAdsQueryPort googleAdsQueryPort) {
+    public PublishValidationService(GoogleAdsQueryPort googleAdsQueryPort,
+                                     TenantGovernancePort governancePort) {
         this.googleAdsQueryPort = googleAdsQueryPort;
+        this.governancePort = governancePort;
     }
 
     public void validate(PlanRevision revision, List<PlanItem> items, UUID tenantId) {
+        // Gap #1: governance gate before publish
+        governancePort.assertCanExecuteCampaigns(tenantId);
+
         var connection = googleAdsQueryPort.findConnectionByTenantId(tenantId)
             .orElseThrow(() -> new DomainError.ValidationError("CE_400",
                 "No Google Ads connection found for tenant: " + tenantId));

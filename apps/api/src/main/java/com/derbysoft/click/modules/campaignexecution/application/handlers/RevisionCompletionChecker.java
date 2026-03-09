@@ -5,6 +5,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.PlanRevisionRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.PlanRevision;
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
+import com.derbysoft.click.modules.campaignexecution.domain.events.ExecutionSummaryUpdated;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.PlanItemStatus;
 import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import java.time.Instant;
@@ -58,5 +59,18 @@ public class RevisionCompletionChecker {
             eventBus.publish(EventEnvelope.of(event.getClass().getSimpleName(), event))
         );
         saved.clearEvents();
+
+        // Gap #10: emit ExecutionSummaryUpdated after completion
+        eventBus.publish(EventEnvelope.of("ExecutionSummaryUpdated",
+            new ExecutionSummaryUpdated(
+                revision.getId(),
+                revision.getTenantId(),
+                0, 0,  // queued/inProgress are 0 at completion
+                (int) succeeded,
+                (int) failed,
+                0,     // blocked count already included in failed per spec
+                now
+            )
+        ));
     }
 }

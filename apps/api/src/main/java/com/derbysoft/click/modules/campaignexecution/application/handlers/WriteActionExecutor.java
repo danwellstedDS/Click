@@ -7,9 +7,13 @@ import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.WriteActionRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteAction;
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
+import com.derbysoft.click.modules.campaignexecution.domain.events.AccessFailureObserved;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.WriteActionStatus;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationApiException;
+import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationAuthException;
 import com.derbysoft.click.modules.googleadsmanagement.api.ports.GoogleAdsQueryPort;
+import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
 import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import java.time.Instant;
 import java.util.UUID;
@@ -27,6 +31,7 @@ public class WriteActionExecutor {
     private final PlanItemRepository planItemRepository;
     private final GoogleAdsMutationPort mutationPort;
     private final GoogleAdsQueryPort googleAdsQueryPort;
+    private final TenantGovernancePort governancePort;
     private final InProcessEventBus eventBus;
     private final RetryPolicyEngine retryPolicyEngine;
     private final ExecutionIncidentLifecycleService incidentLifecycleService;
@@ -36,6 +41,7 @@ public class WriteActionExecutor {
                                 PlanItemRepository planItemRepository,
                                 GoogleAdsMutationPort mutationPort,
                                 GoogleAdsQueryPort googleAdsQueryPort,
+                                TenantGovernancePort governancePort,
                                 InProcessEventBus eventBus,
                                 RetryPolicyEngine retryPolicyEngine,
                                 ExecutionIncidentLifecycleService incidentLifecycleService,
@@ -44,6 +50,7 @@ public class WriteActionExecutor {
         this.planItemRepository = planItemRepository;
         this.mutationPort = mutationPort;
         this.googleAdsQueryPort = googleAdsQueryPort;
+        this.governancePort = governancePort;
         this.eventBus = eventBus;
         this.retryPolicyEngine = retryPolicyEngine;
         this.incidentLifecycleService = incidentLifecycleService;
@@ -58,6 +65,14 @@ public class WriteActionExecutor {
         if (action.getStatus() != WriteActionStatus.PENDING) {
             log.debug("Skipping action {} — status is {}", writeActionId, action.getStatus());
             return;
+        }
+
+        // Gap #1: governance gate before any write
+        try {
+            governancePort.assertCanExecuteCampaigns(action.getTenantId());
+        } catch (Exception e) {
+            throw new MutationApiException(FailureClass.PERMANENT,
+                "Governance blocked execution: " + e.getMessage(), e);
         }
 
         PlanItem item = planItemRepository.findById(action.getItemId())
@@ -87,7 +102,27 @@ public class WriteActionExecutor {
             planItemRepository.save(item);
             publishAndClear(item);
 
-            incidentLifecycleService.onSuccess(action.getIdempotencyKey(), action.getTenantId());
+            incidentLifecycleService.onSuccess(
+                action.getRevisionId(), action.getItemId(), action.getTenantId());
+            revisionCompletionChecker.checkRevisionCompletion(action.getRevisionId());
+
+        } catch (MutationAuthException e) {
+            // Gap #3: publish cross-BC event so BC5 can mark connection broken
+            eventBus.publish(EventEnvelope.of("AccessFailureObserved",
+                new AccessFailureObserved(action.getTenantId(),
+                    action.getTargetCustomerId(), e.getMessage())));
+
+            FailureClass fc = FailureClass.PERMANENT;
+            now = Instant.now();
+            action.markFailed(fc, e.getMessage(), now);
+            writeActionRepository.save(action);
+
+            incidentLifecycleService.onFailure(
+                action.getRevisionId(), action.getItemId(), action.getTenantId(), fc);
+
+            item.block("Auth failure: " + e.getMessage(), now);
+            planItemRepository.save(item);
+            publishAndClear(item);
             revisionCompletionChecker.checkRevisionCompletion(action.getRevisionId());
 
         } catch (Exception e) {
@@ -96,7 +131,8 @@ public class WriteActionExecutor {
             action.markFailed(fc, e.getMessage(), now);
             writeActionRepository.save(action);
 
-            incidentLifecycleService.onFailure(action.getIdempotencyKey(), action.getTenantId(), fc);
+            incidentLifecycleService.onFailure(
+                action.getRevisionId(), action.getItemId(), action.getTenantId(), fc);
 
             if (action.canRetry()) {
                 var delay = retryPolicyEngine.computeDelay(action);

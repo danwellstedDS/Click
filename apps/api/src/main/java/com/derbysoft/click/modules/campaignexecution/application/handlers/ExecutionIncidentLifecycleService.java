@@ -24,9 +24,10 @@ public class ExecutionIncidentLifecycleService {
     }
 
     @Transactional
-    public void onSuccess(String idempotencyKey, UUID tenantId) {
+    public void onSuccess(UUID revisionId, UUID itemId, UUID tenantId) {
         Instant now = Instant.now();
-        Optional<ExecutionIncident> existing = incidentRepository.findByIdempotencyKey(idempotencyKey);
+        Optional<ExecutionIncident> existing =
+            incidentRepository.findByRevisionIdAndItemId(revisionId, itemId);
         if (existing.isPresent()) {
             ExecutionIncident incident = existing.get();
             incident.autoClose(now);
@@ -36,19 +37,32 @@ public class ExecutionIncidentLifecycleService {
     }
 
     @Transactional
-    public void onFailure(String idempotencyKey, UUID tenantId, FailureClass failureClass) {
+    public void onFailure(UUID revisionId, UUID itemId, UUID tenantId, FailureClass failureClass) {
         Instant now = Instant.now();
-        Optional<ExecutionIncident> existing = incidentRepository.findByIdempotencyKey(idempotencyKey);
+        String failureClassKey = failureClass.name();
+        Optional<ExecutionIncident> existing =
+            incidentRepository.findByRevisionIdAndItemIdAndFailureClass(
+                revisionId, itemId, failureClassKey);
+
         if (existing.isEmpty()) {
             ExecutionIncident incident = ExecutionIncident.open(
-                UUID.randomUUID(), idempotencyKey, tenantId, failureClass, now);
+                UUID.randomUUID(), revisionId, itemId, failureClassKey, tenantId, failureClass, now);
             ExecutionIncident saved = incidentRepository.save(incident);
             publishAndClear(saved);
         } else {
             ExecutionIncident incident = existing.get();
-            incident.recordFailure(now);
-            ExecutionIncident saved = incidentRepository.save(incident);
-            publishAndClear(saved);
+            if (incident.isRecurrenceWindowExpired(now)) {
+                // Past 24h window — open a fresh incident
+                ExecutionIncident fresh = ExecutionIncident.open(
+                    UUID.randomUUID(), revisionId, itemId, failureClassKey, tenantId, failureClass, now);
+                ExecutionIncident saved = incidentRepository.save(fresh);
+                publishAndClear(saved);
+            } else {
+                // Reopen or continue existing incident
+                incident.recordFailure(now);
+                ExecutionIncident saved = incidentRepository.save(incident);
+                publishAndClear(saved);
+            }
         }
     }
 

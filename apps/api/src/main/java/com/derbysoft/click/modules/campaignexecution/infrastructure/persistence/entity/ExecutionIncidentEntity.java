@@ -38,6 +38,15 @@ public class ExecutionIncidentEntity {
     @Column(name = "last_failed_at", nullable = false)
     private Instant lastFailedAt;
 
+    @Column(name = "revision_id")
+    private UUID revisionId;
+
+    @Column(name = "item_id")
+    private UUID itemId;
+
+    @Column(name = "failure_class_key", length = 30)
+    private String failureClassKey;
+
     @Column(name = "acknowledged_by", length = 255)
     private String acknowledgedBy;
 
@@ -60,6 +69,7 @@ public class ExecutionIncidentEntity {
     public ExecutionIncidentEntity(UUID id, String idempotencyKey, UUID tenantId,
                                     String failureClass, String status, int consecutiveFailures,
                                     Instant firstFailedAt, Instant lastFailedAt,
+                                    UUID revisionId, UUID itemId, String failureClassKey,
                                     String acknowledgedBy, String ackReason, Instant acknowledgedAt) {
         this.id = id;
         this.idempotencyKey = idempotencyKey;
@@ -69,6 +79,9 @@ public class ExecutionIncidentEntity {
         this.consecutiveFailures = consecutiveFailures;
         this.firstFailedAt = firstFailedAt;
         this.lastFailedAt = lastFailedAt;
+        this.revisionId = revisionId;
+        this.itemId = itemId;
+        this.failureClassKey = failureClassKey;
         this.acknowledgedBy = acknowledgedBy;
         this.ackReason = ackReason;
         this.acknowledgedAt = acknowledgedAt;
@@ -82,6 +95,9 @@ public class ExecutionIncidentEntity {
     public int getConsecutiveFailures() { return consecutiveFailures; }
     public Instant getFirstFailedAt() { return firstFailedAt; }
     public Instant getLastFailedAt() { return lastFailedAt; }
+    public UUID getRevisionId() { return revisionId; }
+    public UUID getItemId() { return itemId; }
+    public String getFailureClassKey() { return failureClassKey; }
     public String getAcknowledgedBy() { return acknowledgedBy; }
     public String getAckReason() { return ackReason; }
     public Instant getAcknowledgedAt() { return acknowledgedAt; }

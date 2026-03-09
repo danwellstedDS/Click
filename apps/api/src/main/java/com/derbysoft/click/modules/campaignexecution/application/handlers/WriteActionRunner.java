@@ -47,7 +47,8 @@ public class WriteActionRunner {
                     action.markFailed(FailureClass.TRANSIENT, "lease expired — max attempts reached", now);
                     writeActionRepository.save(action);
                     incidentLifecycleService.onFailure(
-                        action.getIdempotencyKey(), action.getTenantId(), FailureClass.TRANSIENT);
+                        action.getRevisionId(), action.getItemId(),
+                        action.getTenantId(), FailureClass.TRANSIENT);
                 }
             } catch (Exception e) {
                 log.warn("Failed to recover expired action {}: {}", action.getId(), e.getMessage());

@@ -29,6 +29,19 @@ public class ExecutionIncidentRepositoryImpl implements ExecutionIncidentReposit
     }
 
     @Override
+    public Optional<ExecutionIncident> findByRevisionIdAndItemIdAndFailureClass(
+        UUID revisionId, UUID itemId, String failureClassKey) {
+        return jpaRepository.findByRevisionIdAndItemIdAndFailureClassKey(
+            revisionId, itemId, failureClassKey).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<ExecutionIncident> findByRevisionIdAndItemId(UUID revisionId, UUID itemId) {
+        return jpaRepository.findFirstByRevisionIdAndItemIdOrderByCreatedAtDesc(
+            revisionId, itemId).map(mapper::toDomain);
+    }
+
+    @Override
     public List<ExecutionIncident> findOpenByTenantId(UUID tenantId) {
         return jpaRepository.findByTenantIdAndStatusIn(tenantId, List.of("OPEN", "REOPENED"))
             .stream().map(mapper::toDomain).toList();

@@ -6,6 +6,9 @@ import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.WriteActionRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteAction;
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
+import com.derbysoft.click.modules.campaignexecution.domain.errors.RateLimitExceededException;
+import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
+import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.PlanItemStatus;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.ForceRunItemRequest;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.PlanItemResponse;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.RetryItemRequest;
@@ -16,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,9 +81,17 @@ public class PlanItemController {
     ) {
         UUID tenantId = extractTenantId(request);
         String by = extractTriggeredBy(request);
-        PlanItem item = retryHandler.retry(itemId, tenantId, body.reason(), by);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-            .body(ApiResponse.success(toResponse(item), requestId(request)));
+        try {
+            PlanItem item = retryHandler.retry(itemId, tenantId, body.reason(), by);
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(toResponse(item), requestId(request)));
+        } catch (RateLimitExceededException e) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfter().getSeconds()));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .headers(headers)
+                .body(ApiResponse.error("CE_429", e.getMessage(), requestId(request)));
+        }
     }
 
     @PostMapping("/{itemId}/force-run")
@@ -92,9 +104,17 @@ public class PlanItemController {
     ) {
         UUID tenantId = extractTenantId(request);
         String by = extractTriggeredBy(request);
-        PlanItem item = forceRunHandler.forceRun(itemId, tenantId, body.reason(), by);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-            .body(ApiResponse.success(toResponse(item), requestId(request)));
+        try {
+            PlanItem item = forceRunHandler.forceRun(itemId, tenantId, body.reason(), by);
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(toResponse(item), requestId(request)));
+        } catch (RateLimitExceededException e) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfter().getSeconds()));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .headers(headers)
+                .body(ApiResponse.error("CE_429", e.getMessage(), requestId(request)));
+        }
     }
 
     @GetMapping("/{itemId}/explain")
@@ -120,8 +140,29 @@ public class PlanItemController {
             item.getStatus().name(), item.getAttempts(),
             item.getFailureClass() != null ? item.getFailureClass().name() : null,
             item.getFailureReason(),
-            item.getCreatedAt(), item.getUpdatedAt()
+            item.getCreatedAt(), item.getUpdatedAt(),
+            computeNextAction(item), computeActionability(item)
         );
+    }
+
+    private String computeNextAction(PlanItem item) {
+        if (item.getStatus() == PlanItemStatus.SUCCEEDED) return null;
+        if (item.getFailureClass() == FailureClass.PERMANENT) return "Review payload and retry";
+        if (item.getFailureClass() == FailureClass.TRANSIENT) {
+            if (item.canRetry()) return "Scheduled for retry";
+            return "Max retries reached — retry manually";
+        }
+        return null;
+    }
+
+    private String computeActionability(PlanItem item) {
+        if (item.getStatus() == PlanItemStatus.SUCCEEDED) return "NONE";
+        if (item.getFailureClass() == FailureClass.PERMANENT) return "ACTIONABLE";
+        if (item.getFailureClass() == FailureClass.TRANSIENT) {
+            if (item.canRetry()) return "MONITORING";
+            return "ACTIONABLE";
+        }
+        return "NONE";
     }
 
     private WriteActionResponse toWriteActionResponse(WriteAction action) {

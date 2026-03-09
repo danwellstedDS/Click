@@ -41,7 +41,10 @@ import com.derbysoft.click.modules.ingestion.infrastructure.persistence.reposito
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncJobRepositoryImpl;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupJpaRepository;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupRepositoryImpl;
+import com.derbysoft.click.modules.campaignexecution.application.ports.SnapshotQueryPort;
 import com.derbysoft.click.modules.tenantgovernance.api.ports.TenantGovernancePort;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -73,12 +76,27 @@ public class ModuleRegistry {
   }
 
   /**
-   * Stub: always permits integration creation. Replace with a real implementation
+   * Stub: always permits all governance checks. Replace with a real implementation
    * when BC2's application layer is built.
    */
   @Bean
   public TenantGovernancePort tenantGovernancePort() {
-    return tenantId -> { /* always permit */ };
+    return new TenantGovernancePort() {
+      @Override
+      public void assertCanCreateIntegration(UUID tenantId) { /* always permit */ }
+
+      @Override
+      public void assertCanExecuteCampaigns(UUID tenantId) { /* always permit */ }
+    };
+  }
+
+  /**
+   * Stub: returns empty snapshots. Replace with a real BC7 adapter when
+   * per-resource snapshot lookup is available in the ingestion module.
+   */
+  @Bean
+  public SnapshotQueryPort snapshotQueryPort() {
+    return resourceId -> Optional.empty();
   }
 
   @Bean

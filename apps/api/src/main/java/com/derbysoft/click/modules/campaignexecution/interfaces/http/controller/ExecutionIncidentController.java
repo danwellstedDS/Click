@@ -3,6 +3,8 @@ package com.derbysoft.click.modules.campaignexecution.interfaces.http.controller
 import com.derbysoft.click.modules.campaignexecution.api.ports.CampaignManagementQueryPort;
 import com.derbysoft.click.modules.campaignexecution.application.handlers.AcknowledgeEscalationHandler;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.ExecutionIncident;
+import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
+import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.IncidentStatus;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.AcknowledgeEscalationRequest;
 import com.derbysoft.click.modules.campaignexecution.interfaces.http.dto.ExecutionIncidentResponse;
 import com.derbysoft.click.sharedkernel.api.ApiResponse;
@@ -40,7 +42,9 @@ public class ExecutionIncidentController {
             .map(i -> new ExecutionIncidentResponse(
                 i.incidentId(), i.idempotencyKey(), i.tenantId(),
                 i.failureClass(), i.status(), i.consecutiveFailures(),
-                i.lastFailedAt(), i.acknowledgedBy(), i.ackReason()
+                i.lastFailedAt(), i.acknowledgedBy(), i.ackReason(),
+                computeNextActionForIncident(i.failureClass(), i.status(), i.consecutiveFailures()),
+                computeActionabilityForIncident(i.failureClass(), i.status(), i.consecutiveFailures())
             ))
             .toList();
         return ApiResponse.success(incidents, requestId(request));
@@ -55,7 +59,9 @@ public class ExecutionIncidentController {
             .map(i -> new ExecutionIncidentResponse(
                 i.incidentId(), i.idempotencyKey(), i.tenantId(),
                 i.failureClass(), i.status(), i.consecutiveFailures(),
-                i.lastFailedAt(), i.acknowledgedBy(), i.ackReason()
+                i.lastFailedAt(), i.acknowledgedBy(), i.ackReason(),
+                computeNextActionForIncident(i.failureClass(), i.status(), i.consecutiveFailures()),
+                computeActionabilityForIncident(i.failureClass(), i.status(), i.consecutiveFailures())
             ))
             .toList();
         return ApiResponse.success(incidents, requestId(request));
@@ -73,12 +79,36 @@ public class ExecutionIncidentController {
     }
 
     private ExecutionIncidentResponse toResponse(ExecutionIncident incident) {
+        String fc = incident.getFailureClass().name();
+        String status = incident.getStatus().name();
+        int failures = incident.getConsecutiveFailures();
         return new ExecutionIncidentResponse(
             incident.getId(), incident.getIdempotencyKey(), incident.getTenantId(),
-            incident.getFailureClass().name(), incident.getStatus().name(),
-            incident.getConsecutiveFailures(), incident.getLastFailedAt(),
-            incident.getAcknowledgedBy(), incident.getAckReason()
+            fc, status, failures, incident.getLastFailedAt(),
+            incident.getAcknowledgedBy(), incident.getAckReason(),
+            computeNextActionForIncident(fc, status, failures),
+            computeActionabilityForIncident(fc, status, failures)
         );
+    }
+
+    private String computeNextActionForIncident(String failureClass, String status, int failures) {
+        if (IncidentStatus.AUTO_CLOSED.name().equals(status)) return null;
+        if (FailureClass.PERMANENT.name().equals(failureClass)) return "Review payload and retry";
+        if (FailureClass.TRANSIENT.name().equals(failureClass)) {
+            if (failures < 3) return "Scheduled for retry";
+            return "Max retries reached — retry manually";
+        }
+        return null;
+    }
+
+    private String computeActionabilityForIncident(String failureClass, String status, int failures) {
+        if (IncidentStatus.AUTO_CLOSED.name().equals(status)) return "NONE";
+        if (FailureClass.PERMANENT.name().equals(failureClass)) return "ACTIONABLE";
+        if (FailureClass.TRANSIENT.name().equals(failureClass)) {
+            if (failures < 3) return "MONITORING";
+            return "ACTIONABLE";
+        }
+        return "NONE";
     }
 
     private String extractTriggeredBy(HttpServletRequest request) {

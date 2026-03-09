@@ -7,6 +7,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.events.ExecutionInci
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.IncidentStatus;
 import com.derbysoft.click.sharedkernel.domain.errors.DomainError;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,10 +16,15 @@ import java.util.UUID;
 
 public final class ExecutionIncident {
 
+    private static final Duration RECURRENCE_WINDOW = Duration.ofHours(24);
+
     private final UUID id;
     private final String idempotencyKey;
     private final UUID tenantId;
     private final FailureClass failureClass;
+    private final UUID revisionId;
+    private final UUID itemId;
+    private final String failureClassKey;
     private IncidentStatus status;
     private int consecutiveFailures;
     private final Instant firstFailedAt;
@@ -31,7 +37,9 @@ public final class ExecutionIncident {
     private final List<Object> events = new ArrayList<>();
 
     private ExecutionIncident(UUID id, String idempotencyKey, UUID tenantId,
-                               FailureClass failureClass, IncidentStatus status,
+                               FailureClass failureClass,
+                               UUID revisionId, UUID itemId, String failureClassKey,
+                               IncidentStatus status,
                                int consecutiveFailures,
                                Instant firstFailedAt, Instant lastFailedAt,
                                String acknowledgedBy, String ackReason, Instant acknowledgedAt,
@@ -40,6 +48,9 @@ public final class ExecutionIncident {
         this.idempotencyKey = idempotencyKey;
         this.tenantId = tenantId;
         this.failureClass = failureClass;
+        this.revisionId = revisionId;
+        this.itemId = itemId;
+        this.failureClassKey = failureClassKey;
         this.status = status;
         this.consecutiveFailures = consecutiveFailures;
         this.firstFailedAt = firstFailedAt;
@@ -51,16 +62,19 @@ public final class ExecutionIncident {
         this.updatedAt = updatedAt;
     }
 
-    public static ExecutionIncident open(UUID id, String idempotencyKey, UUID tenantId,
+    public static ExecutionIncident open(UUID id, UUID revisionId, UUID itemId,
+                                          String failureClassKey, UUID tenantId,
                                           FailureClass failureClass, Instant now) {
+        String derivedKey = revisionId + "/" + itemId + "/" + failureClassKey;
         ExecutionIncident incident = new ExecutionIncident(
-            id, idempotencyKey, tenantId, failureClass,
+            id, derivedKey, tenantId, failureClass,
+            revisionId, itemId, failureClassKey,
             IncidentStatus.OPEN, 1,
             now, now,
             null, null, null,
             now, now
         );
-        incident.events.add(new ExecutionIncidentOpened(id, idempotencyKey, tenantId, failureClass, now));
+        incident.events.add(new ExecutionIncidentOpened(id, derivedKey, tenantId, failureClass, now));
         return incident;
     }
 
@@ -68,11 +82,13 @@ public final class ExecutionIncident {
                                                   FailureClass failureClass, IncidentStatus status,
                                                   int consecutiveFailures,
                                                   Instant firstFailedAt, Instant lastFailedAt,
+                                                  UUID revisionId, UUID itemId, String failureClassKey,
                                                   String acknowledgedBy, String ackReason,
                                                   Instant acknowledgedAt,
                                                   Instant createdAt, Instant updatedAt) {
-        return new ExecutionIncident(id, idempotencyKey, tenantId, failureClass, status,
-            consecutiveFailures, firstFailedAt, lastFailedAt,
+        return new ExecutionIncident(id, idempotencyKey, tenantId, failureClass,
+            revisionId, itemId, failureClassKey,
+            status, consecutiveFailures, firstFailedAt, lastFailedAt,
             acknowledgedBy, ackReason, acknowledgedAt,
             createdAt, updatedAt);
     }
@@ -110,10 +126,22 @@ public final class ExecutionIncident {
         this.updatedAt = now;
     }
 
+    /**
+     * Returns true if this AUTO_CLOSED incident's recurrence window (24h) has elapsed,
+     * meaning a new failure should open a fresh incident rather than reopen this one.
+     */
+    public boolean isRecurrenceWindowExpired(Instant now) {
+        if (status != IncidentStatus.AUTO_CLOSED) return false;
+        return Duration.between(updatedAt, now).compareTo(RECURRENCE_WINDOW) >= 0;
+    }
+
     public UUID getId() { return id; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public UUID getTenantId() { return tenantId; }
     public FailureClass getFailureClass() { return failureClass; }
+    public UUID getRevisionId() { return revisionId; }
+    public UUID getItemId() { return itemId; }
+    public String getFailureClassKey() { return failureClassKey; }
     public IncidentStatus getStatus() { return status; }
     public int getConsecutiveFailures() { return consecutiveFailures; }
     public Instant getFirstFailedAt() { return firstFailedAt; }

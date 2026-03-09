@@ -1,3 +1,5 @@
 package com.derbysoft.click.modules.campaignexecution.interfaces.http.dto;
 
-public record ApplyRevisionRequest(String reason) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record ApplyRevisionRequest(@NotBlank String reason) {}

@@ -355,6 +355,22 @@ A **Google Ads ACL** lives here (domain model <-> Google Ads API translations on
 - API version migration path: update imports in `GoogleAdsMutationClient` only; domain and port are unaffected.
 - `MutationApiException` (carries `FailureClass`) is classified directly; `MutationAuthException` remains PERMANENT.
 
+### Compliance fixes (2026-03-09)
+
+Eleven gaps between spec and implementation closed. All are locked decisions:
+
+- **Gap #1 — BC2 governance gate**: `PublishValidationService` and `WriteActionExecutor` now call `TenantGovernancePort.assertCanExecuteCampaigns(tenantId)` before publish/execution. Rejection throws `DomainError.Conflict(GOVERNANCE_BLOCKED)` or `MutationApiException(PERMANENT)` respectively.
+- **Gap #2 — Binding validation at apply time**: `PlanApplyService` fails fast with `DomainError.Conflict` if no active binding exists for the tenant. No write actions are created for a plan with no reachable account.
+- **Gap #3 — `AccessFailureObserved` cross-BC event**: `WriteActionExecutor` emits `AccessFailureObserved` on `MutationAuthException` before recording failure. BC5 (`AccessFailureObservedHandler`) subscribes and marks the connection broken.
+- **Gap #4 — Composite incident identity**: `ExecutionIncident` identity is `(revisionId, itemId, failureClass)`. Migration `V202603090001` adds the three columns; repository finder updated.
+- **Gap #5 — 24h recurrence window**: `ExecutionIncidentLifecycleService.onFailure` reopens `AUTO_CLOSED` incidents only if closure was < 24h ago; older closed incidents yield a fresh incident.
+- **Gap #6 — APPLY counted in rate limit**: `ManualExecutionRateLimitService` counts `APPLY` triggers alongside `FORCE_RUN` and `RETRY`. `PlanApplyService` calls `checkOrThrow` at the start of `applyRevision`.
+- **Gap #7 — `retryAfter` on rate-limit breach**: rate-limit exceeded throws `RateLimitExceededException(Duration)`. `CampaignPlanController` catches it and returns HTTP 429 with `Retry-After` header. `ApplyRevisionRequest.reason` is `@NotBlank`.
+- **Gap #8 — Support contract fields in DTOs**: `PlanItemResponse` and `ExecutionIncidentResponse` now include `nextAction` (String) and `actionability` (String). Values computed from `failureClass + status` in the controller.
+- **Gap #9 — Drift detection implementation**: `DriftDetectionService` queries BC7 snapshots via `SnapshotQueryPort` and compares key fields against the succeeded `WriteAction` payload. Returns `DriftItem` records per mismatched field.
+- **Gap #10 — `ExecutionSummaryUpdated` emission**: `RevisionCompletionChecker` publishes `ExecutionSummaryUpdated` after marking a revision complete or failed.
+- **Gap #11 — `EventEnvelope` contract**: `EventEnvelope` record extended with `correlationId`, `aggregateId`, `aggregateVersion`, `tenantId`, `payloadSchemaVersion`. `EventEnvelope.of()` factory defaults `aggregateVersion=0`, `payloadSchemaVersion="1.0"`, others null.
+
 ### Aggregates
 
 - **CampaignPlan** (root): logical plan identity and high-level ownership context.

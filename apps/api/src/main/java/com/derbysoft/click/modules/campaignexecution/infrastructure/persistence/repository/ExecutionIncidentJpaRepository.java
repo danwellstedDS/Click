@@ -8,6 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExecutionIncidentJpaRepository extends JpaRepository<ExecutionIncidentEntity, UUID> {
     Optional<ExecutionIncidentEntity> findByIdempotencyKey(String idempotencyKey);
+    Optional<ExecutionIncidentEntity> findByRevisionIdAndItemIdAndFailureClassKey(
+        UUID revisionId, UUID itemId, String failureClassKey);
+    Optional<ExecutionIncidentEntity> findFirstByRevisionIdAndItemIdOrderByCreatedAtDesc(
+        UUID revisionId, UUID itemId);
     List<ExecutionIncidentEntity> findByTenantIdAndStatusIn(UUID tenantId, List<String> statuses);
     List<ExecutionIncidentEntity> findByTenantIdAndStatusAndAcknowledgedAtIsNull(
         UUID tenantId, String status);
