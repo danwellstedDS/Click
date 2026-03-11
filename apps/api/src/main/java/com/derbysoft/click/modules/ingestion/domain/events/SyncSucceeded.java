@@ -7,5 +7,6 @@ public record SyncSucceeded(
     UUID jobId,
     String idempotencyKey,
     UUID tenantId,
+    UUID integrationId,
     Instant occurredAt
 ) {}

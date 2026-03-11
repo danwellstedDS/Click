@@ -8,7 +8,7 @@ import com.derbysoft.click.modules.ingestion.domain.RawSnapshotRepository;
 import com.derbysoft.click.modules.ingestion.domain.SyncJobRepository;
 import com.derbysoft.click.modules.ingestion.domain.aggregates.RawSnapshot;
 import com.derbysoft.click.modules.ingestion.domain.aggregates.SyncJob;
-import com.derbysoft.click.modules.ingestion.domain.events.AuthFailureDetected;
+import com.derbysoft.click.modules.googleadsmanagement.api.events.AccessFailureObserved;
 import com.derbysoft.click.modules.ingestion.domain.valueobjects.FailureClass;
 import com.derbysoft.click.modules.ingestion.domain.valueobjects.SyncJobStatus;
 import com.derbysoft.click.modules.ingestion.infrastructure.googleads.IngestionAuthException;
@@ -127,9 +127,9 @@ public class JobExecutor {
             publishAndClear(job);
 
             if (e instanceof IngestionAuthException iae) {
-                eventBus.publish(EventEnvelope.of("AuthFailureDetected",
-                    new AuthFailureDetected(job.getIntegrationId(), job.getAccountId(),
-                        job.getTenantId(), iae.getMessage(), now)));
+                eventBus.publish(EventEnvelope.of("AccessFailureObserved",
+                    new AccessFailureObserved(job.getTenantId(), job.getAccountId(),
+                        iae.getMessage())));
             }
 
             incidentLifecycleService.onFailure(job.getIdempotencyKey(), job.getTenantId(), fc);

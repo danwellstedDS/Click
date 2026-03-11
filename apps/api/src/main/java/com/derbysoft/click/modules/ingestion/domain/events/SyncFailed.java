@@ -8,6 +8,7 @@ public record SyncFailed(
     UUID jobId,
     String idempotencyKey,
     UUID tenantId,
+    UUID integrationId,
     FailureClass failureClass,
     String reason,
     Instant occurredAt

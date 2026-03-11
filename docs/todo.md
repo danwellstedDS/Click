@@ -59,27 +59,18 @@ This backlog splits work into:
 - `apps/api/src/main/java/com/derbysoft/click/bootstrap/di/ModuleRegistry.java`
 - `apps/api/src/main/java/com/derbysoft/click/modules/tenantgovernance/api/ports/TenantGovernancePort.java`
 
-### 6) Fix BC4 <-> BC7 sync outcome mismatch
-- [ ] Align producer and consumer to one shared `SyncSucceeded` / `SyncFailed` contract.
-- [ ] Ensure BC4 health transitions consume the same event types BC7 publishes.
+### 6) ~~Fix BC4 <-> BC7 sync outcome mismatch~~ ✓ DONE
+- [x] Align producer and consumer to one shared `SyncSucceeded` / `SyncFailed` contract.
+- [x] Ensure BC4 health transitions consume the same event types BC7 publishes.
 
-**Current mismatch**
-- BC4 expects `channelintegration.domain.events.Sync*`
-- BC7 publishes `ingestion.domain.events.Sync*`
+**Completed**: Added `integrationId` to `ingestion.domain.events.SyncSucceeded/SyncFailed`. Re-pointed `SyncOutcomeHandler` to consume ingestion events directly. Deleted channelintegration stub event classes. See `agent-os/specs/2026-03-10-0900-bc7-bc4-sync-outcome-fix/`.
 
-Files:
-- `apps/api/src/main/java/com/derbysoft/click/modules/channelintegration/application/handlers/SyncOutcomeHandler.java`
-- `apps/api/src/main/java/com/derbysoft/click/modules/ingestion/domain/events/SyncSucceeded.java`
-- `apps/api/src/main/java/com/derbysoft/click/modules/ingestion/domain/events/SyncFailed.java`
+### 7) ~~Unify access-failure observation path (BC7/BC6 -> BC5)~~ ✓ DONE
+- [x] Standardize ingestion auth failure event into the shared BC5 observation contract.
+- [x] Add BC5 consumer for the standardized ingestion observation.
+- [x] Ensure BC5 remains sole authority for binding/connection health transitions.
 
-### 7) Unify access-failure observation path (BC7/BC6 -> BC5)
-- [ ] Standardize ingestion auth failure event into the shared BC5 observation contract.
-- [ ] Add BC5 consumer for the standardized ingestion observation.
-- [ ] Ensure BC5 remains sole authority for binding/connection health transitions.
-
-**Current state**
-- BC6 emits `AccessFailureObserved`.
-- BC7 emits `AuthFailureDetected` (different shape/path).
+**Completed**: Created canonical `googleadsmanagement.api.events.AccessFailureObserved`. BC6 (`WriteActionExecutor`) and BC7 (`JobExecutor`) both emit from this location. BC5 (`AccessFailureObservedHandler`) updated to import canonical event. Deleted `campaignexecution.domain.events.AccessFailureObserved` stub and `ingestion.domain.events.AuthFailureDetected`. See `agent-os/specs/2026-03-10-1000-bc7-bc5-auth-failure-canonical/`.
 
 ### 8) Replace BC6 drift snapshot query stub
 - [ ] Implement real `SnapshotQueryPort` adapter from BC7 snapshot store.
@@ -102,22 +93,37 @@ Files:
 **Done when**
 - A consumer can pull the latest OpenAPI spec and create/use a Postman collection without manual endpoint discovery.
 
-### 10) Implement BC8 (Normalisation)
-- [ ] Create module structure (domain/application/infrastructure/interfaces).
-- [ ] Implement `NormalizeSnapshot(snapshotId)` pipeline.
-- [ ] Publish `CanonicalBatchProduced`.
-- [ ] Define canonical fact persistence + versioned mapping strategy.
+### 10) ~~Implement BC8 (Normalisation) MVP-1~~ ✓ DONE
+- [x] Create module structure (domain/application/infrastructure/interfaces).
+- [x] Implement `NormalizeSnapshot(snapshotId)` pipeline.
+- [x] Publish `CanonicalBatchProduced`.
+- [x] Define canonical fact persistence + versioned mapping strategy.
+- [x] Idempotent batch production (deterministic batch ID, `IdempotencyGuard`).
+- [x] Quality validation + quarantine path (`QualityFlag`, `CanonicalFactQuarantined`).
+- [x] REST API: list batches, get batch, list facts, quality report.
+- [x] Add `costAmount` generated column (DB computes `cost_micros / 1000000.0`; exposed on `CanonicalFactInfo` and `CanonicalFactData`).
+- [x] Add BC8 test suite (CanonicalBatchTest, QualityValidatorTest, NormalizerTest, BatchAssemblerTest, IdempotencyGuardTest, NormalisationServiceTest). See `agent-os/specs/2026-03-10-1300-bc8-test-suite/`.
 
-**Current state**
-- Placeholder only: `apps/api/src/main/java/com/derbysoft/click/modules/normalisation/.gitkeep`
+**Completed**: MVP-1 — Google Ads campaign-day normalisation. Migrations `V202603090003`–`V202603090004`. See `agent-os/specs/2026-03-09-1800-bc8-normalisation/`.
 
-### 11) Implement BC9 (Attribution & Mapping)
-- [ ] Implement mapping rule set + overrides + mapping run process.
-- [ ] Consume BC8 canonical batches.
-- [ ] Publish `MappingResultBatchProduced` and low-confidence signals.
+**costAmount gap closed**: Migration `V202603100001`. See `agent-os/specs/2026-03-10-1100-bc8-cost-amount/`.
 
-**Current state**
-- Placeholder only: `apps/api/src/main/java/com/derbysoft/click/modules/attributionmapping/.gitkeep`
+**Deferred** (post-MVP-1): multi-channel dispatch, BC8 rebuild flow, BC9 consumer, per-tenant rate limiting.
+
+### 11) ~~Implement BC9 (Attribution & Mapping) MVP-1~~ ✓ DONE
+- [x] Implement mapping rule set + overrides + mapping run process.
+- [x] Consume BC8 canonical batches via `CanonicalBatchProducedListener`.
+- [x] Publish `MappingResultBatchProduced`, `MappingRunStarted`, `MappingRunFailed`, `MappingOverrideSet`, `MappingOverrideRemoved`.
+- [x] Manual override CRUD (ACCOUNT + ACCOUNT_CAMPAIGN scopes).
+- [x] Idempotency with override-set versioning.
+- [x] REST API: list runs, get run, list facts, low-confidence queue, manage overrides.
+- [x] Extend BC5 `account_bindings` with `org_node_id` + `org_scope_type`.
+
+**Completed**: MVP-1 — explicit binding + manual overrides + low-confidence queue. Migrations `V202603090005`–`V202603090008`. See `agent-os/specs/2026-03-09-1900-bc9-attribution-mapping/`.
+
+**LowConfidenceMappingDetected gap closed**: [x] Emit `LowConfidenceMappingDetected` (per-run, `lowConfidenceCount > 0 || unresolvedCount > 0`, includes fact IDs). See `agent-os/specs/2026-03-10-1200-bc9-low-confidence-event/`.
+
+**Deferred** (post-MVP-1): MEDIUM/LOW heuristic resolution, bulk override import, re-attribution trigger, BC9 → BC10 consumer.
 
 ### 12) Implement BC10 (Reporting & Portfolio Intelligence)
 - [ ] Build projection pipeline and query APIs for rollups/KPIs/coverage.
@@ -139,10 +145,14 @@ Files:
 
 **Deferred** (out of MVP scope): late-arriving correction, duplicate/idempotent replay, multi-account scope, fixture versioning/changelog.
 
-### 14) Close BC8/BC9/BC10 MVP definitions
-- [ ] BC8 canonical metric definitions + minimum dimension grain.
-- [ ] BC9 confidence threshold + fallback mapping order.
-- [ ] BC10 MVP dashboard set + freshness SLA by view type.
+### 14) ~~Close BC8/BC9/BC10 MVP definitions~~ ✓ DONE
+- [x] BC8 canonical metric definitions + minimum dimension grain.
+- [x] BC9 confidence threshold + fallback mapping order.
+- [x] BC10 MVP dashboard set + freshness SLA by view type.
+
+**Completed**: BC8/BC9/BC10 sections in `docs/bd.md` now include locked decisions, invariants, commands/events, data contracts, failure handling, and MVP slices.
+
+**Remaining follow-up**: implement BC9/BC10 modules and close residual BC8/BC9/BC10 open questions where marked.
 
 ---
 

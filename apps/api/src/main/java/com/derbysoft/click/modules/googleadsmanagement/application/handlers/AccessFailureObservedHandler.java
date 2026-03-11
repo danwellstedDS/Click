@@ -1,6 +1,6 @@
 package com.derbysoft.click.modules.googleadsmanagement.application.handlers;
 
-import com.derbysoft.click.modules.campaignexecution.domain.events.AccessFailureObserved;
+import com.derbysoft.click.modules.googleadsmanagement.api.events.AccessFailureObserved;
 import com.derbysoft.click.sharedkernel.api.EventEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

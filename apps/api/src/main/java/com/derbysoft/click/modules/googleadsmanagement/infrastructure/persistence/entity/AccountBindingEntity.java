@@ -67,5 +67,15 @@ public class AccountBindingEntity {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
+    @Column(name = "org_node_id")
+    private UUID orgNodeId;
+
+    @Column(name = "org_scope_type", length = 30)
+    private String orgScopeType;
+
     public void setStatus(String status) { this.status = status; }
+    public UUID getOrgNodeId() { return orgNodeId; }
+    public void setOrgNodeId(UUID orgNodeId) { this.orgNodeId = orgNodeId; }
+    public String getOrgScopeType() { return orgScopeType; }
+    public void setOrgScopeType(String orgScopeType) { this.orgScopeType = orgScopeType; }
 }

@@ -138,7 +138,7 @@ class JobExecutorTest {
     }
 
     @Test
-    void shouldPublishAuthFailureDetectedOnAuthException() {
+    void shouldPublishAccessFailureObservedOnAuthException() {
         SyncJob job = pendingJob();
         when(syncJobRepository.findById(JOB_ID)).thenReturn(Optional.of(job));
         when(syncJobRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -150,8 +150,8 @@ class JobExecutorTest {
 
         executor.execute(JOB_ID);
 
-        // AuthFailureDetected event published in addition to job events
-        verify(eventBus, times(3)).publish(any()); // SyncStarted + SyncFailed + AuthFailureDetected
+        // AccessFailureObserved event published in addition to job events
+        verify(eventBus, times(3)).publish(any()); // SyncStarted + SyncFailed + AccessFailureObserved
     }
 
     @Test

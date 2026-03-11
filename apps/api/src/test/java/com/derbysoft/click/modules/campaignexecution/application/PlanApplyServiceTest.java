@@ -77,7 +77,7 @@ class PlanApplyServiceTest {
         when(revisionRepository.findActiveApplyingByTenantId(TENANT_ID)).thenReturn(Optional.empty());
         when(revisionRepository.findById(REVISION_ID)).thenReturn(Optional.of(revision));
         when(googleAdsQueryPort.listActiveBindings(TENANT_ID)).thenReturn(List.of(
-            new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "123456789", "ACTIVE", "CUSTOMER")));
+            new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "123456789", "ACTIVE", "CUSTOMER", null, null)));
         when(planItemRepository.findByRevisionId(REVISION_ID)).thenReturn(List.of(item));
         when(revisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(planItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

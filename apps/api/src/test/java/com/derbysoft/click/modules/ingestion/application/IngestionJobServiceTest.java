@@ -55,15 +55,15 @@ class IngestionJobServiceTest {
     }
 
     private AccountBindingInfo activeBinding() {
-        return new AccountBindingInfo(BINDING_ID, TENANT_ID, "123-456-7890", "ACTIVE", "STANDARD");
+        return new AccountBindingInfo(BINDING_ID, TENANT_ID, "123-456-7890", "ACTIVE", "STANDARD", null, null);
     }
 
     private AccountBindingInfo staleBinding() {
-        return new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "999-000-0001", "STALE", "STANDARD");
+        return new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "999-000-0001", "STALE", "STANDARD", null, null);
     }
 
     private AccountBindingInfo brokenBinding() {
-        return new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "999-000-0002", "BROKEN", "STANDARD");
+        return new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "999-000-0002", "BROKEN", "STANDARD", null, null);
     }
 
     private SyncJob savedJob(SyncJob job) {
@@ -86,7 +86,7 @@ class IngestionJobServiceTest {
     void shouldSkipBrokenAndRemovedBindings() {
         when(googleAdsQueryPort.listActiveBindings(TENANT_ID))
             .thenReturn(List.of(brokenBinding(),
-                new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "removed-1", "REMOVED", "STANDARD")));
+                new AccountBindingInfo(UUID.randomUUID(), TENANT_ID, "removed-1", "REMOVED", "STANDARD", null, null)));
 
         service.enqueueDailySync(INTEGRATION_ID, TENANT_ID);
 

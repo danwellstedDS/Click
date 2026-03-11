@@ -1,5 +1,9 @@
 package com.derbysoft.click.bootstrap.di;
 
+import com.derbysoft.click.modules.attributionmapping.infrastructure.persistence.mapper.MappingRunMapper;
+import com.derbysoft.click.modules.attributionmapping.infrastructure.persistence.repository.MappedFactJpaRepository;
+import com.derbysoft.click.modules.attributionmapping.infrastructure.persistence.repository.MappingRunJpaRepository;
+import com.derbysoft.click.modules.attributionmapping.infrastructure.persistence.repository.MappingRunRepositoryImpl;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.mapper.IntegrationInstanceMapper;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.repository.IntegrationInstanceJpaRepository;
 import com.derbysoft.click.modules.channelintegration.infrastructure.persistence.repository.IntegrationInstanceRepositoryImpl;
@@ -33,12 +37,20 @@ import com.derbysoft.click.modules.campaignexecution.infrastructure.persistence.
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.RawSnapshotMapper;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncIncidentMapper;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.mapper.SyncJobMapper;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawCampaignRowJpaRepository;
+import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawCampaignRowQueryAdapter;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawSnapshotJpaRepository;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.RawSnapshotRepositoryImpl;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncIncidentJpaRepository;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncIncidentRepositoryImpl;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncJobJpaRepository;
 import com.derbysoft.click.modules.ingestion.infrastructure.persistence.repository.SyncJobRepositoryImpl;
+import com.derbysoft.click.modules.googleadsmanagement.infrastructure.persistence.repository.AccountBindingQueryAdapter;
+import com.derbysoft.click.modules.normalisation.infrastructure.persistence.repository.CanonicalFactQueryAdapter;
+import com.derbysoft.click.modules.normalisation.infrastructure.persistence.mapper.CanonicalBatchMapper;
+import com.derbysoft.click.modules.normalisation.infrastructure.persistence.repository.CanonicalBatchJpaRepository;
+import com.derbysoft.click.modules.normalisation.infrastructure.persistence.repository.CanonicalBatchRepositoryImpl;
+import com.derbysoft.click.modules.normalisation.infrastructure.persistence.repository.CanonicalFactJpaRepository;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupJpaRepository;
 import com.derbysoft.click.modules.organisationstructure.infrastructure.persistence.repository.PropertyGroupRepositoryImpl;
 import com.derbysoft.click.modules.campaignexecution.application.ports.SnapshotQueryPort;
@@ -218,5 +230,65 @@ public class ModuleRegistry {
       SyncJobMapper syncJobMapper) {
     return new SyncIncidentRepositoryImpl(incidentJpaRepository, syncJobJpaRepository,
         incidentMapper, syncJobMapper);
+  }
+
+  // ── BC8 (normalisation) ───────────────────────────────────────────────────
+
+  /**
+   * BC8 (normalisation): CanonicalBatchRepositoryImpl implements both
+   * {@code CanonicalBatchRepository} (BC8 domain port) and
+   * {@code NormalisationQueryPort} (BC8 public API port). Dual-interface pattern.
+   */
+  @Bean
+  public CanonicalBatchRepositoryImpl canonicalBatchRepositoryImpl(
+      CanonicalBatchJpaRepository batchJpaRepository,
+      CanonicalFactJpaRepository factJpaRepository,
+      CanonicalBatchMapper mapper) {
+    return new CanonicalBatchRepositoryImpl(batchJpaRepository, factJpaRepository, mapper);
+  }
+
+  /**
+   * BC7 → BC8 adapter: exposes BC7's raw campaign rows to BC8's normalisation pipeline
+   * via {@code RawCampaignRowQueryPort}.
+   */
+  @Bean
+  public RawCampaignRowQueryAdapter rawCampaignRowQueryAdapter(
+      RawCampaignRowJpaRepository rawCampaignRowJpaRepository) {
+    return new RawCampaignRowQueryAdapter(rawCampaignRowJpaRepository);
+  }
+
+  // ── BC9 (attribution-mapping) ─────────────────────────────────────────────
+
+  /**
+   * BC9 (attribution-mapping): MappingRunRepositoryImpl implements both
+   * {@code MappingRunRepository} (BC9 domain port) and
+   * {@code AttributionQueryPort} (BC9 public API port). Dual-interface pattern.
+   */
+  @Bean
+  public MappingRunRepositoryImpl mappingRunRepositoryImpl(
+      MappingRunJpaRepository runJpaRepository,
+      MappedFactJpaRepository factJpaRepository,
+      MappingRunMapper runMapper) {
+    return new MappingRunRepositoryImpl(runJpaRepository, factJpaRepository, runMapper);
+  }
+
+  /**
+   * BC8 → BC9 adapter: exposes BC8's canonical facts to BC9's attribution pipeline
+   * via {@code CanonicalFactQueryPort}.
+   */
+  @Bean
+  public CanonicalFactQueryAdapter canonicalFactQueryAdapter(
+      CanonicalFactJpaRepository canonicalFactJpaRepository) {
+    return new CanonicalFactQueryAdapter(canonicalFactJpaRepository);
+  }
+
+  /**
+   * BC5 → BC9 adapter: exposes BC5's account bindings to BC9's attribution pipeline
+   * via {@code AccountBindingQueryPort}.
+   */
+  @Bean
+  public AccountBindingQueryAdapter accountBindingQueryAdapter(
+      AccountBindingJpaRepository accountBindingJpaRepository) {
+    return new AccountBindingQueryAdapter(accountBindingJpaRepository);
   }
 }

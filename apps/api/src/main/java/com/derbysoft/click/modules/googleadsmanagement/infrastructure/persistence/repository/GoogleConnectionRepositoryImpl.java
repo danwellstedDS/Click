@@ -77,7 +77,8 @@ public class GoogleConnectionRepositoryImpl
         return bindingJpaRepository.findByTenantId(tenantId).stream()
             .filter(e -> BindingStatus.ACTIVE.name().equals(e.getStatus()))
             .map(e -> new AccountBindingInfo(
-                e.getId(), e.getTenantId(), e.getCustomerId(), e.getStatus(), e.getBindingType()
+                e.getId(), e.getTenantId(), e.getCustomerId(), e.getStatus(), e.getBindingType(),
+                e.getOrgNodeId(), e.getOrgScopeType()
             ))
             .toList();
     }

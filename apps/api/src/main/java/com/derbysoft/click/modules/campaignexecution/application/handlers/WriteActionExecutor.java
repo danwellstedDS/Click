@@ -7,7 +7,7 @@ import com.derbysoft.click.modules.campaignexecution.domain.PlanItemRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.WriteActionRepository;
 import com.derbysoft.click.modules.campaignexecution.domain.aggregates.WriteAction;
 import com.derbysoft.click.modules.campaignexecution.domain.entities.PlanItem;
-import com.derbysoft.click.modules.campaignexecution.domain.events.AccessFailureObserved;
+import com.derbysoft.click.modules.googleadsmanagement.api.events.AccessFailureObserved;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.FailureClass;
 import com.derbysoft.click.modules.campaignexecution.domain.valueobjects.WriteActionStatus;
 import com.derbysoft.click.modules.campaignexecution.infrastructure.googleads.MutationApiException;

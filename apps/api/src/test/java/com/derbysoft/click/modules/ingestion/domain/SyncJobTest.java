@@ -76,7 +76,8 @@ class SyncJobTest {
         assertThat(job.getStatus()).isEqualTo(SyncJobStatus.SUCCEEDED);
         assertThat(job.getLeaseExpiresAt()).isNull();
         assertThat(job.getEvents()).hasSize(1);
-        assertThat(job.getEvents().get(0)).isInstanceOf(SyncSucceeded.class);
+        SyncSucceeded succeeded = (SyncSucceeded) job.getEvents().get(0);
+        assertThat(succeeded.integrationId()).isEqualTo(INTEGRATION_ID);
     }
 
     @Test
@@ -93,6 +94,7 @@ class SyncJobTest {
         assertThat(job.getLeaseExpiresAt()).isNull();
         assertThat(job.getEvents()).hasSize(1);
         SyncFailed event = (SyncFailed) job.getEvents().get(0);
+        assertThat(event.integrationId()).isEqualTo(INTEGRATION_ID);
         assertThat(event.failureClass()).isEqualTo(FailureClass.TRANSIENT);
     }
 

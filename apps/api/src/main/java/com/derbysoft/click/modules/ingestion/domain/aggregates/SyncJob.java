@@ -120,7 +120,7 @@ public final class SyncJob {
         this.status = SyncJobStatus.SUCCEEDED;
         this.leaseExpiresAt = null;
         this.updatedAt = now;
-        events.add(new SyncSucceeded(id, idempotencyKey, tenantId, now));
+        events.add(new SyncSucceeded(id, idempotencyKey, tenantId, integrationId, now));
     }
 
     public void markFailed(FailureClass failureClass, String reason, Instant now) {
@@ -129,7 +129,7 @@ public final class SyncJob {
         this.failureReason = reason;
         this.leaseExpiresAt = null;
         this.updatedAt = now;
-        events.add(new SyncFailed(id, idempotencyKey, tenantId, failureClass, reason, now));
+        events.add(new SyncFailed(id, idempotencyKey, tenantId, integrationId, failureClass, reason, now));
     }
 
     public void markStuck(Instant now) {
@@ -138,7 +138,7 @@ public final class SyncJob {
         this.failureReason = "stuck";
         this.leaseExpiresAt = null;
         this.updatedAt = now;
-        events.add(new SyncFailed(id, idempotencyKey, tenantId, FailureClass.TRANSIENT, "stuck", now));
+        events.add(new SyncFailed(id, idempotencyKey, tenantId, integrationId, FailureClass.TRANSIENT, "stuck", now));
     }
 
     public void requeueForRetry(Instant nextAttemptAfter, Instant now) {

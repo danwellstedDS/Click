@@ -41,10 +41,10 @@ Provides **identity** and **coarse authorization** primitives and issues an `Act
 
 Other BCs **must not** depend on identity storage models; they depend on `ActorContext`.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Do we need ABAC-style rules in addition to RBAC for near-term roadmap?
-- Should agency delegation be modeled as tenant entities or scoped memberships?
+- Authorization model is RBAC-only in MVP; ABAC is deferred.
+- Agency delegation is modeled through scoped memberships.
 
 ----------
 
@@ -83,10 +83,11 @@ Defines tenant operating model and **invariants** for “risky actions” (write
 - Consumed by BC4/BC6 as a synchronous policy check (application service call).
 - No direct dependency on provider specifics (Google).
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Should governance policies support OrgNode-specific overrides in MVP?
-- Which actions are hard-blocked versus override-eligible?
+- OrgNode-specific policy overrides are allowed in MVP, but only for stricter constraints (never more permissive than tenant-global policy).
+- Hard-block actions: auth/security/credential-sensitive operations.
+- Override-eligible actions: operational workflows (for example manual operations, pacing/budget operations) with audit.
 
 ----------
 
@@ -126,10 +127,10 @@ Source of truth for **org identity** (OrgNodeId) and hierarchy used for rollups 
 - BC5 references OrgNodeId as an external identity for bindings.
 - BC10 uses hierarchy for read model aggregation.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Do we need extra node types beyond PropertyGroup and Hotel?
-- What are the authoritative late-binding rules when property is initially unknown?
+- MVP node types remain `PropertyGroup` and `Property` only.
+- Late binding uses unresolved-first semantics, then auto-bind on identity availability with audit event emission.
 
 ----------
 
@@ -183,10 +184,10 @@ Owns the **lifecycle** and **operational state** of a tenant’s channel integra
 
 BC4 does **not** own provider account graphs, GAQL, campaign semantics, or per-account health.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Do we support multiple integration instances per tenant/channel at launch?
-- What are the SLA targets for reflecting ingest failures into integration status?
+- MVP supports exactly one integration instance per tenant/channel.
+- Target SLA for ingest-failure reflection into integration status is <= 5 minutes.
 
 ----------
 
@@ -296,13 +297,13 @@ BC4 does **not** own provider account graphs, GAQL, campaign semantics, or per-a
 
 A **Google Ads ACL** lives here (domain model <-> Google Ads API translations only).
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Final event payload contract per lifecycle event (required fields and version policy).
-- Exact finite-state transition table for `ACTIVE/BROKEN/STALE/REMOVED`.
-- Resolution output dedupe rule when same account is bound at both ancestor and property levels.
-- Manual discovery command contract: synchronous response vs async job token/event contract.
-- Retention policy for audit logs and graph diff history.
+- BC5 lifecycle events use a shared envelope contract with per-event `schemaVersion` and additive-only evolution.
+- Binding FSM is explicit and constrained: `ACTIVE <-> BROKEN`, `ACTIVE <-> STALE`, `* -> REMOVED`; `REMOVED` is terminal (no direct recovery).
+- Resolution dedupe is union by `customerAccountId`, with provenance retained for traceability.
+- Manual discovery is asynchronous and returns a job token with completion event.
+- Audit and account-graph diff retention is 13 months.
 
 ----------
 
@@ -477,11 +478,11 @@ Eleven gaps between spec and implementation closed. All are locked decisions:
 - Event evolution is additive-only.
 - `ExecutionSummaryUpdated` emits on `30s` debounce per tenant (infra-configurable).
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Exact revision and incident transition tables (full matrix) to include in implementation spec appendix.
-- Retention policy for execution audits/incidents/drift records.
-- Phase 2 delete semantics and safety workflow (soft-delete vs hard-delete + prechecks).
+- Full revision/item/incident transition matrices are mandatory and must be codified in a spec appendix and test suite.
+- Retention for execution audits/incidents/drift records is 13 months.
+- Delete semantics in Phase 2 use soft-delete with prechecks; hard-delete is restricted to admin/maintenance workflow.
 
 ----------
 
@@ -592,148 +593,456 @@ Eleven gaps between spec and implementation closed. All are locked decisions:
 - BC6/BC7 never mutate access/binding health state directly.
 - BC5 is the only BC that emits authoritative binding/connection health lifecycle events.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Exact event payload contracts and versioning strategy for `Sync*` and `Incident*` events.
-- Natural key specification per report type for raw upsert-overwrite correctness.
-- Lease/heartbeat semantics for job ownership under process crash/restart.
-- Detailed BC7 <-> BC4/BC5 contract for auth-failure signaling payloads.
-- Retention policy for raw snapshots, incidents, and audit logs.
+- `Sync*` and `Incident*` events follow the shared envelope contract with per-event `schemaVersion` and additive-only evolution.
+- Raw upsert-overwrite uses a typed natural-key registry per report type; unknown report types are hard-rejected.
+- Job ownership uses a 60-minute lease with 5-minute heartbeat and fenced ownership token.
+- Auth/permission failures are emitted as standardized `AccessFailureObserved` to BC5 (deprecating divergent BC7-specific auth-failure event path).
+- Retention: raw snapshots 90 days hot storage; incidents and audit metadata retained 13 months.
 
 ----------
 
 # BC8 — Normalisation (Metrics Canon)
 
+### At a glance
+
+- **Purpose**: convert BC7 raw provider rows into a stable, provider-agnostic canonical metrics model for mapping and reporting.
+- **MVP posture**: campaign-day grain for Google Ads ingestion, with additive schema evolution and deterministic replay behavior.
+- **Downstream contract**: BC8 publishes immutable canonical batches that BC9 can consume idempotently.
+
 ### Ubiquitous language
 
-**CanonicalFact, Dimension, MetricDefinition, CanonicalBatch**
+**CanonicalFact, CanonicalBatch, FactGrain, MappingVersion, MetricDefinition, DimensionSet, ReconciliationKey**
 
 ### Responsibility
 
-Transforms raw provider rows into a **provider-agnostic canonical fact model** (metrics/dimensions) used by reporting and portfolio logic.
+- Transform raw rows into canonical facts with normalized dimensions/metrics.
+- Enforce canonical schema and mapping-version rules.
+- Guarantee deterministic, idempotent normalization for replay/rebuild.
+- Publish canonical batch outcomes and quality signals.
+
+### Locked decisions
+
+- MVP fact grain: **tenant + channel + account + campaign + date**.
+- Provider source for MVP: Google Ads rows from BC7.
+- Canonical facts are **append-by-batch** with immutable `batchId`; corrections are emitted as new batches, not in-place mutation.
+- Reprocessing same input snapshot + same mapping version is idempotent and produces the same `canonicalBatchId`.
+- Mapping logic is versioned (`mappingVersion`) and stored on each fact.
+- Event evolution is additive-only; no breaking payload changes in-place.
+- Currency for spend is stored in **micros** and decimal form; reporting currency conversion remains downstream (BC11/BC12 scope).
+- Time is normalized to both `dateLocal` (tenant/account timezone semantics from BC7 scope) and `occurredAtUtc`.
+
+### Canonical fact model (MVP)
+
+**Dimensions**
+
+- `tenantId`
+- `channel` (`GOOGLE_ADS` in MVP)
+- `integrationId`
+- `customerAccountId`
+- `campaignId`
+- `campaignName` (nullable, informational)
+- `reportDate` (local date at source grain)
+
+**Metrics**
+
+- `impressions`
+- `clicks`
+- `costMicros`
+- `conversions` (provider-reported; canonical but not authoritative booking truth)
+
+**Technical fields**
+
+- `canonicalFactId`
+- `canonicalBatchId`
+- `sourceSnapshotId`
+- `mappingVersion`
+- `ingestedAtUtc`
+- `reconciliationKey` (deterministic key for idempotency and dedupe)
+- `qualityFlags` (array; empty when clean)
 
 ### Aggregates
 
-- **MetricDefinition** (root) _(optional if you store definitions as domain data)_
-- **CanonicalBatch** (root): batch metadata + produced facts pointer
-- **CanonicalFact** (entity/table row; usually persisted in analytical store)
+- **CanonicalBatch** (root): input snapshot references, mapping version, status, row counts, quality counters, checksum/fingerprint.
+- **CanonicalFact** (entity): normalized metric row at canonical grain.
+- **MetricDefinition** (root/config): canonical metric catalog and validation rules (optional as persisted domain object in MVP).
+
+### Invariants (non-negotiable)
+
+- Every canonical fact must reference exactly one `sourceSnapshotId` and one `canonicalBatchId`.
+- A `CanonicalBatch` is immutable after `Produced` state.
+- `reconciliationKey` uniqueness is enforced within `(canonicalBatchId, reconciliationKey)`.
+- Numeric metrics are non-negative unless explicitly marked as correction rows.
+- Facts failing schema or semantic validation are quarantined; they are never silently dropped.
 
 ### Domain services
 
-- **Normalizer**: raw -> canonical transform, versioned mapping logic
+- **Normalizer**: row-level mapping from raw provider schema to canonical schema.
+- **BatchAssembler**: builds deterministic batch identity and checksum.
+- **QualityValidator**: schema/semantic validation and quarantine routing.
+- **IdempotencyGuard**: prevents duplicate batch production for same input+version tuple.
 
 ### Commands
 
-- `NormalizeSnapshot(snapshotId)`
+- `NormalizeSnapshot(snapshotId, mappingVersion?)`
+- `RebuildCanonicalBatch(snapshotId, mappingVersion)` (admin/support operational command)
+- `ReconcileCanonicalBatch(batchId)` (verification/recount command)
 
 ### Domain events
 
+- `CanonicalBatchStarted`
+- `CanonicalFactQuarantined`
 - `CanonicalBatchProduced`
+- `CanonicalBatchRebuilt`
+- `CanonicalBatchFailed`
+
+### Read models / queries
+
+- `GetCanonicalBatch(batchId)`
+- `ListCanonicalBatches(scope, timeRange, status)`
+- `GetCanonicalFacts(batchId, page)`
+- `GetNormalizationQualityReport(batchId)`
+
+### Data contracts (minimum fields)
+
+**CanonicalBatchProduced**
+
+- `canonicalBatchId`
+- `tenantId`
+- `channel`
+- `sourceSnapshotIds[]`
+- `mappingVersion`
+- `factCount`
+- `quarantinedCount`
+- `checksum`
+- `occurredAtUtc`
+
+**CanonicalFact**
+
+- `canonicalFactId`
+- `canonicalBatchId`
+- `sourceSnapshotId`
+- `tenantId`
+- `channel`
+- `integrationId`
+- `customerAccountId`
+- `campaignId`
+- `campaignName` (nullable)
+- `reportDate`
+- `impressions`
+- `clicks`
+- `costMicros`
+- `conversions`
+- `mappingVersion`
+- `reconciliationKey`
+- `qualityFlags[]`
+- `ingestedAtUtc`
 
 ### Integrations
 
 - Consumes `RawSnapshotWritten` from BC7.
+- Uses BC3/BC5 reference data only for validation hints (not ownership of mappings).
 - Publishes `CanonicalBatchProduced` consumed by BC9.
+- Publishes quality/failure events consumable by support workflows and BC10 coverage views.
 
-### Open questions
+### Failure handling
 
-- Which conversion metric definition is canonical for cross-channel reporting?
-- What minimum dimension grain is required in MVP canonical facts?
+- Schema mismatch -> quarantine row + `CanonicalFactQuarantined`.
+- Batch-level fatal validation error -> `CanonicalBatchFailed`.
+- Infra/transient failure -> retry under BC7/worker policy; no partial publish of produced batch event.
+- Replay of already-normalized snapshot/version -> return existing batch (idempotent success).
+
+### MVP slices
+
+- **MVP-1**: Google Ads campaign-day normalization (`impressions`, `clicks`, `costMicros`, `conversions`) with `CanonicalBatchProduced`.
+- **MVP-2**: add ad-group and keyword grain extensions behind mapping-version bump.
+- **MVP-3**: cross-channel normalization pack and compatibility adapters.
+
+### Locked decisions (confirmed)
+
+- BC8 persists both `costMicros` (authoritative) and decimal `costAmount` in MVP.
+- `device` and `network` dimensions are added in MVP-2 behind mapping-version bump.
 
 ----------
 
 # BC9 — Attribution & Mapping
 
+### At a glance
+
+- **Purpose**: attach BC8 canonical facts to Click org structure with deterministic, explainable mapping logic.
+- **MVP posture**: binding-first mapping with controlled heuristics, confidence scoring, and auditable overrides.
+- **Downstream contract**: BC9 emits mapped fact batches for BC10 rollups and quality visibility.
+
 ### Ubiquitous language
 
-**MappingRule, MappingResult, ConfidenceBand, Override**
+**MappingRuleSet, MappingResult, MappingConfidence, MappingOverride, MappingRun, ResolutionReason**
 
 ### Responsibility
 
-Attaches canonical facts to business structure (OrgNodes) using explicit bindings and optional heuristic rules.
+- Resolve canonical facts to `OrgNodeId` scope (`Property`/`PropertyGroup`) using a strict precedence model.
+- Assign confidence and explainability metadata per mapping decision.
+- Manage manual overrides with full audit trail.
+- Emit mapping quality signals for operational follow-up.
+
+### Locked decisions
+
+- Mapping precedence order is fixed:
+  1. Active manual override.
+  2. Explicit BC5 account binding resolution.
+  3. Rule-based deterministic heuristics.
+  4. Unresolved (no implicit forced assignment).
+- BC5 remains authoritative for account->org explicit mappings; BC9 does not mutate BC5 binding state.
+- Override scope can be by `customerAccountId + campaignId` (preferred) or `customerAccountId` fallback.
+- Overrides are soft-removable and fully auditable (history retained).
+- Confidence bands are standardized:
+  - `HIGH`: explicit override or unambiguous explicit binding.
+  - `MEDIUM`: deterministic rule match with single candidate.
+  - `LOW`: ambiguous candidate set reduced by weak heuristics.
+  - `UNRESOLVED`: no safe mapping.
+- Mandatory review trigger: any `LOW` or `UNRESOLVED` result.
+- Mapping is idempotent per `(canonicalBatchId, ruleSetVersion, overrideSetVersion)`.
+- Re-runs produce new `MappingRun` records; prior outputs remain queryable for audit.
 
 ### Aggregates
 
-- **MappingRuleSet** (root): explicit rules + optional naming conventions/heuristics
-- **MappingOverride** (root): manual corrections
-- **MappingRun** (root/process): batch mapping outcome metadata
+- **MappingRuleSet** (root): versioned deterministic rules and precedence policy.
+- **MappingOverride** (root): operator-set correction with scope, reason, actor, and lifecycle state.
+- **MappingRun** (root/process): execution metadata, input versions, counts, and quality summary.
+- **MappedFact** (entity): canonical fact + resolved org scope + confidence + reason code.
+
+### Invariants (non-negotiable)
+
+- Every `MappedFact` must reference exactly one source `canonicalFactId`.
+- `UNRESOLVED` mappings cannot include a synthetic `OrgNodeId`.
+- Rule set and override versions used in a run are immutable after run completion.
+- Mapping output must be reproducible from stored inputs and versions.
+- Override writes require write-capable roles (`ADMIN`/`SUPPORT`) and reason text.
 
 ### Domain services
 
-- **Mapper**: `CanonicalFact -> (OrgNodeId, ConfidenceBand)`
-- **ConfidenceScorer**
+- **Mapper**: resolves `CanonicalFact -> MappingResult`.
+- **ConfidenceScorer**: computes confidence band and score from evidence strength.
+- **OverrideResolver**: applies override precedence and lifecycle filtering.
+- **AmbiguityDetector**: detects multi-candidate conflicts and emits actionable reason codes.
 
 ### Commands
 
 - `MapCanonicalBatch(batchId)`
-- `SetOverride`
+- `SetMappingOverride(scope, targetOrgNodeId, reason)`
+- `RemoveMappingOverride(overrideId, reason)` (soft remove)
+- `ReprocessMapping(batchId, ruleSetVersion?)`
 
 ### Domain events
 
 - `MappingResultBatchProduced`
 - `LowConfidenceMappingDetected`
+- `MappingOverrideSet`
+- `MappingOverrideRemoved`
+- `MappingRunFailed`
+
+### Read models / queries
+
+- `GetMappingRun(runId)`
+- `ListMappingRuns(scope, timeRange, status)`
+- `GetMappedFacts(batchId, confidenceFilter?)`
+- `GetLowConfidenceQueue(scope, timeRange)`
+- `GetMappingExplain(factId)`
+
+### Data contracts (minimum fields)
+
+**MappingResultBatchProduced**
+
+- `mappingRunId`
+- `canonicalBatchId`
+- `tenantId`
+- `ruleSetVersion`
+- `overrideSetVersion`
+- `mappedCount`
+- `lowConfidenceCount`
+- `unresolvedCount`
+- `occurredAtUtc`
+
+**MappedFact**
+
+- `mappedFactId`
+- `mappingRunId`
+- `canonicalFactId`
+- `tenantId`
+- `resolvedOrgNodeId` (nullable when unresolved)
+- `resolvedScopeType` (`Property` | `PropertyGroup` | null)
+- `confidenceBand` (`HIGH|MEDIUM|LOW|UNRESOLVED`)
+- `confidenceScore` (0..1)
+- `resolutionReasonCode`
+- `ruleSetVersion`
+- `overrideApplied` (boolean)
+- `mappedAtUtc`
 
 ### Integrations
 
 - Reads OrgNode identities from BC3 (by reference).
 - Reads bindings from BC5 (explicit account->org mapping).
+- Consumes `CanonicalBatchProduced` from BC8.
 - Produces mapped facts consumed by BC10.
+- Emits low-confidence/unresolved queue signals for support workflows.
 
-### Open questions
+### Failure handling
 
-- What confidence threshold triggers mandatory manual review?
-- What fallback order is canonical for unresolved mappings?
+- Missing/invalid rule set -> `MappingRunFailed` (no partial publish as success).
+- Reference lookup error (BC3/BC5 transient) -> retry run according to worker policy.
+- Ambiguous resolution -> produce `LOW`/`UNRESOLVED` output, never hard-fail whole run unless systemic.
+- Duplicate run request with same idempotency tuple -> return existing run result.
+
+### MVP slices
+
+- **MVP-1**: explicit binding-based mapping + manual overrides + low-confidence queue.
+- **MVP-2**: deterministic naming heuristics and richer explainability payloads.
+- **MVP-3**: channel-aware heuristic packs and confidence calibration tooling.
+
+### Locked decisions (confirmed)
+
+- End-user MVP UI shows `confidenceBand + reasonCode`; numeric `confidenceScore` is support/debug-facing.
+- Overrides are unbounded in MVP; optional time-bounded overrides are a planned MVP-2 enhancement.
 
 ----------
 
 # BC10 — Reporting & Portfolio Intelligence
 
+### At a glance
+
+- **Purpose**: provide decision-grade read models and portfolio views from mapped canonical performance data.
+- **MVP posture**: projection-first read side with deterministic rebuild, strong freshness signals, and export-ready query APIs.
+- **Downstream role**: primary consumer-facing analytics surface for performance, coverage, and operational health.
+
 ### Ubiquitous language
 
-**ReadModel, Rollup, Coverage, KPIView, PortfolioView**
+**Projection, Rollup, KPIView, CoverageView, PortfolioView, FreshnessState, QuerySlice**
 
 ### Responsibility
 
-Owns **read models** and decision-oriented projections:
+- Build and serve tenant-facing performance projections at Property and PropertyGroup scope.
+- Provide portfolio rollups for channel/account/campaign slices.
+- Surface mapping confidence and integration/binding health coverage.
+- Expose query and export interfaces with predictable freshness semantics.
 
-- hotel rollups
-- group/chain rollups
-- efficiency KPIs
-- coverage and integration health views
+### Locked decisions
 
-(DDD note: this is typically a **CQRS read side** / projection context.)
+- BC10 is read-only; no write-back to BC8/BC9/BC4/BC5 domain state.
+- Projection source of truth for performance is BC9 mapped outputs (not direct BC7 raw rows).
+- Coverage transparency blends:
+  - BC4 integration operational state
+  - BC5 binding/access health
+  - BC9 mapping confidence/unresolved rates
+- MVP dashboards are fixed:
+  1. Property performance rollup
+  2. PropertyGroup portfolio rollup
+  3. Coverage and health dashboard
+  4. Low-confidence/unresolved mapping queue summary
+- Freshness SLO in MVP:
+  - Operational views: target <= 60 minutes end-to-end lag.
+  - Executive rollups: target <= 24 hours.
+- Rebuild strategy: incremental by batch/event for normal flow, full rebuild command for recovery.
+- All projections carry `asOfUtc` and `sourceWatermark` for explainability.
 
 ### Aggregates
 
-Often projection-focused rather than rich aggregates:
+- **PropertyPerformanceView** (projection): KPI set at property grain.
+- **PropertyGroupRollupView** (projection): aggregated KPI set at group grain.
+- **PortfolioDistributionView** (projection): channel/account/campaign split metrics.
+- **CoverageView** (projection): integration/binding/mapping quality state.
+- **FreshnessView** (projection): lag/watermark by tenant and view type.
 
-- **HotelPerformanceView** (projection)
-- **GroupRollupView** (projection)
-- **CoverageView** (projection)
+### Invariants (non-negotiable)
+
+- Every projection row must be traceable to source batch/run identifiers.
+- Projection rebuilds must be deterministic for same source inputs/version.
+- Query APIs never return mixed watermark slices inside a single response without explicit per-slice watermark fields.
+- KPI formulas are versioned and applied consistently across all scopes.
 
 ### Domain services
 
-- **ProjectionBuilder**: builds/refreshes views from mapped facts
-- **QueryService**: serves dashboards and exports
+- **ProjectionBuilder**: event-driven projection updater.
+- **RollupEngine**: multi-level aggregation and KPI derivation.
+- **CoverageAssembler**: combines BC4/BC5/BC9 health signals.
+- **QueryService**: paginated reads, filters, and exports.
 
 ### Commands
 
-- `RebuildProjection` (internal)
-- queries like `GetHotelReport`, `GetGroupRollup`
+- `RebuildProjection(scope, from, to)` (internal/admin)
+- `RefreshCoverageView(tenantId)` (internal)
+- Query commands:
+  - `GetPropertyReport(scope, timeRange, filters)`
+  - `GetPropertyGroupRollup(scope, timeRange, filters)`
+  - `GetPortfolioView(scope, timeRange, dims)`
+  - `GetCoverageView(scope)`
+  - `ExportPerformance(scope, timeRange, format)`
 
 ### Domain events
 
-- Subscribes to `MappingResultBatchProduced` (BC9) and possibly `IntegrationStatusChanged` (BC4)
+- Subscribes to:
+  - `MappingResultBatchProduced` (BC9)
+  - `LowConfidenceMappingDetected` (BC9)
+  - BC4 integration lifecycle events
+  - BC5 binding/connection lifecycle events
+- Publishes:
+  - `ProjectionUpdated`
+  - `CoverageViewUpdated`
+  - `ProjectionFreshnessBreached`
 
 ### Integrations
 
 - Reads hierarchy from BC3 for rollups.
 - Reads integration/binding health from BC4/BC5 for coverage.
+- Reads mapped facts and confidence metadata from BC9.
+- Serves reporting consumers and export clients.
 
-### Open questions
+### Data contracts (minimum fields)
 
-- Which dashboards are MVP must-haves versus phase-2 candidates?
-- What freshness SLA is required for operational vs executive views?
+**PropertyPerformanceView row**
+
+- `tenantId`
+- `propertyId`
+- `timeWindow`
+- `channel`
+- `impressions`
+- `clicks`
+- `costMicros`
+- `conversions`
+- `ctr`
+- `cpcMicros`
+- `asOfUtc`
+- `sourceWatermark`
+
+**CoverageView row**
+
+- `tenantId`
+- `scopeType`
+- `scopeId`
+- `integrationStatus`
+- `bindingHealthSummary`
+- `mappedHighPercent`
+- `mappedLowPercent`
+- `unresolvedPercent`
+- `staleBindingCount`
+- `asOfUtc`
+
+### Failure handling
+
+- Projection update failure does not block upstream processing; event is retried from projection worker queue.
+- Poison projection events are quarantined with alerting and replay tooling.
+- If BC4/BC5 status feeds are delayed, coverage view is marked `STALE` with explicit freshness banner fields.
+- Full rebuild is available as deterministic recovery path.
+
+### MVP slices
+
+- **MVP-1**: property/property-group rollups, basic KPI set, coverage dashboard, CSV export.
+- **MVP-2**: richer portfolio slicing (campaign/account/channel), trend deltas, confidence drilldowns.
+- **MVP-3**: alerting subscriptions and scheduled exports.
+
+### Locked decisions (confirmed)
+
+- Percentiles are computed on-demand in MVP; precomputation is deferred until performance evidence justifies it.
+- Rollups use standard calendar periods in MVP; tenant-configurable fiscal calendars are planned for MVP-2.
 
 ----------
 
@@ -910,10 +1219,10 @@ Often projection-focused rather than rich aggregates:
 - Building a cross-device identity graph beyond first-party scope.
 - Becoming booking engine system-of-record.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Which ingest path is mandatory in MVP-1: webhook, file import, or both?
-- Do we need an explicit reconciliation report versus ad-platform-reported conversions?
+- MVP-1 mandatory ingest paths include both webhook and file import fallback.
+- MVP-1 includes a lightweight explicit reconciliation report versus ad-platform-reported conversions.
 
 ----------
 
@@ -1052,10 +1361,10 @@ Invariant:
 - **Publishes to Optimisation domain**: budget constraint and deviation signals.
 - **Publishes to Channel Connectors domain (future)**: budget push/adjust intent.
 
-### Open questions
+### Locked decisions (confirmed)
 
-- Should `CapitalPolicy` approvals be fully in BC12, or delegated to BC2 workflows?
-- What default tolerance and escalation thresholds should be standardized by tenant segment?
+- BC12 owns capital approval workflow; BC2 enforces global governance constraints.
+- Default deviation tolerance starts at 5% globally, with tenant-level overrides introduced in a later phase.
 
 
 # Context map relationships (DDD-style)
